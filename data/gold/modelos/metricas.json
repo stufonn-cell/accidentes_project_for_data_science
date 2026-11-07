@@ -1,0 +1,48 @@
+{
+  "objetivo": "con_victimas",
+  "particion": {
+    "entrenamiento": "2010 a 2019",
+    "prueba": "2020 a 2022",
+    "filas_entrenamiento": 37462,
+    "filas_prueba": 6297,
+    "prevalencia_entrenamiento": 0.2883,
+    "prevalencia_prueba": 0.304
+  },
+  "modelos": {
+    "regresion_logistica": {
+      "roc_auc": 0.7469,
+      "average_precision": 0.6374,
+      "brier": 0.1717,
+      "precision": 0.8352,
+      "recall": 0.2727,
+      "matriz_confusion": [
+        [
+          4280,
+          103
+        ],
+        [
+          1392,
+          522
+        ]
+      ]
+    },
+    "gradient_boosting": {
+      "roc_auc": 0.7415,
+      "average_precision": 0.6355,
+      "brier": 0.1715,
+      "precision": 0.8545,
+      "recall": 0.2638,
+      "matriz_confusion": [
+        [
+          4297,
+          86
+        ],
+        [
+          1409,
+          505
+        ]
+      ]
+    }
+  },
+  "mejor_modelo": "regresion_logistica"
+}
