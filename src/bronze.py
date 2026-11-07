@@ -1,7 +1,7 @@
-"""Capa bronze: ingesta por lotes del CSV crudo.
+"""Bronze layer: batch ingestion of the raw CSV.
 
-Guarda los datos tal como llegan de la fuente, sin limpiarlos. Solo se
-agrega la columna año para particionar el almacenamiento.
+Stores the data exactly as it comes from the source. Only the año
+column is added to partition the storage.
 """
 
 import pandas as pd
@@ -9,20 +9,20 @@ import pandas as pd
 from src import config
 
 
-def extraer_año(fecha):
-    """La fuente mezcla fechas ISO y dia/mes/año. El año se saca del texto."""
-    if "T" in fecha:
-        return int(fecha[:4])
-    return int(fecha[-4:])
+def extract_year(date_text):
+    """The source mixes ISO dates and day/month/year. Take the year from the text."""
+    if "T" in date_text:
+        return int(date_text[:4])
+    return int(date_text[-4:])
 
 
 def main():
     df = pd.read_csv(config.RAW_CSV, dtype=str)
-    df["año"] = df["FECHA"].map(extraer_año)
+    df["año"] = df["FECHA"].map(extract_year)
 
-    config.preparar(config.BRONZE)
+    config.prepare(config.BRONZE)
     df.to_parquet(config.BRONZE, index=False, partition_cols=["año"])
-    print(f"bronze: {len(df)} filas escritas en {config.BRONZE}")
+    print(f"bronze: {len(df)} rows written to {config.BRONZE}")
 
 
 if __name__ == "__main__":

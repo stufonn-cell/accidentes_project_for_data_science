@@ -1,13 +1,13 @@
-"""Corre el pipeline completo: bronze, silver, gold y modelos."""
+"""Runs the full pipeline: bronze, silver, gold and models."""
 
-from src import bronze, gold, modelos, silver
+from src import bronze, gold, models, silver
 
 
 def main():
     bronze.main()
     silver.main()
     gold.main()
-    modelos.main()
+    models.main()
 
 
 if __name__ == "__main__":

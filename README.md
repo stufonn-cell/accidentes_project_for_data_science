@@ -67,7 +67,7 @@ python -m src.gold
 ```
 
 ```bash
-python -m src.modelos
+python -m src.models
 ```
 
 El analisis exploratorio genera las figuras del informe:
@@ -114,6 +114,25 @@ mismos años que debe predecir.
 La prevalencia de victimas en la prueba es 0.304, asi que un average
 precision de 0.637 duplica con holgura la linea base. La regresion logistica
 queda como modelo principal por su desempeño y su simplicidad.
+
+## Expansion sintetica a 5 millones de filas
+
+Para probar que la arquitectura aguanta un volumen grande, el proyecto
+incluye una expansion sintetica de la capa silver:
+
+```bash
+python -m src.expand
+```
+
+Cada fila real se replica 97 veces desplazando su fecha k meses, con k entre
+-48 y 48, y se recalculan año, mes y dia de la semana. El resultado son
+5,024,988 filas en parquet particionado por año, de 2006 a 2026, unos 109 MB
+en `data/expandido/accidentes`. La columna `desplazamiento_meses` rastrea el
+origen de cada fila: el valor 0 es el dato real.
+
+Estos datos son sinteticos y sirven solo para las pruebas de volumen y
+particiones. El EDA y la evaluacion de los modelos usan los datos reales.
+La carpeta no se versiona en git: se regenera con el comando de arriba.
 
 ## Migracion a AWS
 

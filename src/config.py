@@ -1,10 +1,10 @@
-"""Configuracion de rutas del proyecto.
+"""Storage paths for the project.
 
-Todo el acceso a almacenamiento pasa por este modulo. En local usa la
-carpeta data del repositorio. Para migrar a AWS basta con definir la
-variable de entorno DATA_DIR, por ejemplo:
+All storage access goes through this module. Locally it uses the data
+folder of the repository. To migrate to AWS, set the DATA_DIR
+environment variable, for example:
 
-    DATA_DIR=s3://mi-bucket/accidentes-envigado
+    DATA_DIR=s3://my-bucket/accidentes-envigado
 """
 
 import os
@@ -15,21 +15,22 @@ DATA_DIR = os.environ.get("DATA_DIR", "data")
 RAW_CSV = f"{DATA_DIR}/raw/accidentalidad_envigado.csv"
 BRONZE = f"{DATA_DIR}/bronze/accidentes"
 SILVER = f"{DATA_DIR}/silver/accidentes"
+EXPANDED = f"{DATA_DIR}/expandido/accidentes"
 GOLD_SINIESTROS = f"{DATA_DIR}/gold/siniestros"
 GOLD_AGREGADOS = f"{DATA_DIR}/gold/agregados"
 GOLD_MODELOS = f"{DATA_DIR}/gold/modelos"
 
-ES_NUBE = DATA_DIR.startswith("s3://")
+IS_CLOUD = DATA_DIR.startswith("s3://")
 
 
-def preparar(ruta):
-    """Deja una ruta lista para escribir desde cero.
+def prepare(path):
+    """Get a path ready for a fresh write.
 
-    En local borra la carpeta si existe y la vuelve a crear. En S3 no
-    hace falta: cada corrida escribe objetos nuevos bajo el prefijo.
+    Locally it removes the folder and creates it again. On S3 this is
+    not needed: each run writes new objects under the prefix.
     """
-    if ES_NUBE:
+    if IS_CLOUD:
         return
-    if os.path.isdir(ruta):
-        shutil.rmtree(ruta)
-    os.makedirs(ruta, exist_ok=True)
+    if os.path.isdir(path):
+        shutil.rmtree(path)
+    os.makedirs(path, exist_ok=True)

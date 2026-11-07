@@ -1,22 +1,22 @@
-"""Capa gold: tabla de siniestros y agregados listos para el tablero.
+"""Gold layer: accident table and aggregates ready for the dashboard.
 
-Construye una fila por siniestro a partir de la capa silver, con la
-gravedad mas alta entre sus registros, y los agregados que consumen
-el tablero y los modelos.
+Builds one row per accident from the silver layer, keeping the highest
+severity among its records, plus the aggregates consumed by the
+dashboard and the models.
 """
 
 import pandas as pd
 
 from src import config
 
-ORDEN_GRAVEDAD = {"SOLO DAÑOS": 0, "HERIDOS": 1, "MUERTOS": 2}
+SEVERITY_ORDER = {"SOLO DAÑOS": 0, "HERIDOS": 1, "MUERTOS": 2}
 
 
-def construir_siniestros(df):
+def build_accidents(df):
     df = df.sort_values("fecha_hora")
-    df["nivel_gravedad"] = df["gravedad"].map(ORDEN_GRAVEDAD)
+    df["nivel_gravedad"] = df["gravedad"].map(SEVERITY_ORDER)
 
-    siniestros = df.groupby("radicado", as_index=False).agg(
+    accidents = df.groupby("radicado", as_index=False).agg(
         fecha_hora=("fecha_hora", "first"),
         fecha=("fecha", "first"),
         año=("año", "first"),
@@ -33,60 +33,60 @@ def construir_siniestros(df):
         lon=("lon", "first"),
         lat=("lat", "first"),
     )
-    inverso = {v: k for k, v in ORDEN_GRAVEDAD.items()}
-    siniestros["gravedad"] = siniestros["nivel_gravedad"].map(inverso)
-    siniestros["con_victimas"] = (siniestros["nivel_gravedad"] >= 1).astype(int)
-    return siniestros.drop(columns="nivel_gravedad")
+    inverse = {v: k for k, v in SEVERITY_ORDER.items()}
+    accidents["gravedad"] = accidents["nivel_gravedad"].map(inverse)
+    accidents["con_victimas"] = (accidents["nivel_gravedad"] >= 1).astype(int)
+    return accidents.drop(columns="nivel_gravedad")
 
 
-def construir_agregados(siniestros):
-    tablas = {}
+def build_aggregates(accidents):
+    tables = {}
 
-    tablas["por_mes"] = (
-        siniestros.groupby(["año", "mes"], as_index=False)
+    tables["por_mes"] = (
+        accidents.groupby(["año", "mes"], as_index=False)
         .agg(siniestros=("radicado", "size"), con_victimas=("con_victimas", "sum"))
     )
-    tablas["por_barrio"] = (
-        siniestros.groupby("barrio", as_index=False)
+    tables["por_barrio"] = (
+        accidents.groupby("barrio", as_index=False)
         .agg(siniestros=("radicado", "size"), con_victimas=("con_victimas", "sum"),
              muertos=("gravedad", lambda s: int((s == "MUERTOS").sum())))
         .sort_values("siniestros", ascending=False)
     )
-    tablas["por_dia_hora"] = (
-        siniestros.groupby(["dia_semana", "hora"], as_index=False)
+    tables["por_dia_hora"] = (
+        accidents.groupby(["dia_semana", "hora"], as_index=False)
         .agg(siniestros=("radicado", "size"), con_victimas=("con_victimas", "sum"))
     )
-    tablas["por_clase"] = (
-        siniestros.groupby("clase_accidente", as_index=False)
-        .agg(siniestros=("radicado", "size"), con_victimas=("con_victimas", "sum"))
-        .sort_values("siniestros", ascending=False)
-    )
-    tablas["por_causa"] = (
-        siniestros.groupby("causa", as_index=False)
+    tables["por_clase"] = (
+        accidents.groupby("clase_accidente", as_index=False)
         .agg(siniestros=("radicado", "size"), con_victimas=("con_victimas", "sum"))
         .sort_values("siniestros", ascending=False)
     )
-    tablas["por_gravedad_año"] = (
-        siniestros.groupby(["año", "gravedad"], as_index=False)
+    tables["por_causa"] = (
+        accidents.groupby("causa", as_index=False)
+        .agg(siniestros=("radicado", "size"), con_victimas=("con_victimas", "sum"))
+        .sort_values("siniestros", ascending=False)
+    )
+    tables["por_gravedad_año"] = (
+        accidents.groupby(["año", "gravedad"], as_index=False)
         .agg(siniestros=("radicado", "size"))
     )
-    return tablas
+    return tables
 
 
 def main():
     df = pd.read_parquet(config.SILVER)
     df["año"] = df["año"].astype(int)
 
-    siniestros = construir_siniestros(df)
-    config.preparar(config.GOLD_SINIESTROS)
-    siniestros.to_parquet(config.GOLD_SINIESTROS, index=False, partition_cols=["año"])
+    accidents = build_accidents(df)
+    config.prepare(config.GOLD_SINIESTROS)
+    accidents.to_parquet(config.GOLD_SINIESTROS, index=False, partition_cols=["año"])
 
-    tablas = construir_agregados(siniestros)
-    config.preparar(config.GOLD_AGREGADOS)
-    for nombre, tabla in tablas.items():
-        tabla.to_parquet(f"{config.GOLD_AGREGADOS}/{nombre}.parquet", index=False)
+    tables = build_aggregates(accidents)
+    config.prepare(config.GOLD_AGREGADOS)
+    for name, table in tables.items():
+        table.to_parquet(f"{config.GOLD_AGREGADOS}/{name}.parquet", index=False)
 
-    print(f"gold: {len(siniestros)} siniestros y {len(tablas)} agregados escritos")
+    print(f"gold: {len(accidents)} accidents and {len(tables)} aggregates written")
 
 
 if __name__ == "__main__":
