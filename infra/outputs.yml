@@ -1,0 +1,11 @@
+Outputs:
+  BucketName:
+    Value: !Ref LakeBucket
+  StateMachineArn:
+    Value: !Ref PipelineStateMachine
+  GlueDatabase:
+    Value: !Ref GlueDatabase
+  AthenaWorkGroup:
+    Value: !Ref AthenaWorkGroup
+  PowerBIUser:
+    Value: !Ref PowerBIUser

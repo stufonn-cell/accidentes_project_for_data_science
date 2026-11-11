@@ -1,0 +1,123 @@
+Resources:
+  GlueDatabase:
+    Type: AWS::Glue::Database
+    Properties:
+      CatalogId: !Ref AWS::AccountId
+      DatabaseInput:
+        Name: ${self:custom.databaseName}
+        Description: Siniestros viales de Envigado, capas silver y gold
+
+  # Registers silver and every gold table in the catalog, so Athena and
+  # Power BI can query them. One target per table folder: the crawler names
+  # each table after its folder (siniestros, por_mes, metricas, ...).
+  LakeCrawler:
+    Type: AWS::Glue::Crawler
+    Properties:
+      Name: ${self:custom.prefix}-crawler
+      Role: !GetAtt GlueJobRole.Arn
+      DatabaseName: !Ref GlueDatabase
+      Targets:
+        S3Targets:
+          - Path: s3://${self:custom.bucketName}/silver/accidentes/
+          - Path: s3://${self:custom.bucketName}/gold/siniestros/
+          - Path: s3://${self:custom.bucketName}/gold/agregados/por_mes/
+          - Path: s3://${self:custom.bucketName}/gold/agregados/por_barrio/
+          - Path: s3://${self:custom.bucketName}/gold/agregados/por_dia_hora/
+          - Path: s3://${self:custom.bucketName}/gold/agregados/por_clase/
+          - Path: s3://${self:custom.bucketName}/gold/agregados/por_causa/
+          - Path: s3://${self:custom.bucketName}/gold/agregados/por_gravedad_anio/
+          - Path: s3://${self:custom.bucketName}/gold/modelos/predicciones/
+          - Path: s3://${self:custom.bucketName}/gold/modelos/metricas/
+      SchemaChangePolicy:
+        UpdateBehavior: UPDATE_IN_DATABASE
+        DeleteBehavior: DEPRECATE_IN_DATABASE
+
+  # One Glue job per stage. All of them run glue_jobs/run_stage.py with
+  # a different --stage, on the smallest Spark size (2 workers G.1X).
+  BronzeJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ${self:custom.prefix}-bronze
+      Role: !GetAtt GlueJobRole.Arn
+      GlueVersion: '5.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 20
+      MaxRetries: 0
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: s3://${self:custom.bucketName}/scripts/run_stage.py
+      DefaultArguments:
+        --job-language: python
+        --TempDir: s3://${self:custom.bucketName}/tmp/
+        --extra-py-files: s3://${self:custom.bucketName}/scripts/src.zip
+        --additional-python-modules: ${self:custom.pythonModules}
+        --data_dir: s3://${self:custom.bucketName}
+        --stage: bronze
+
+  SilverJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ${self:custom.prefix}-silver
+      Role: !GetAtt GlueJobRole.Arn
+      GlueVersion: '5.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 20
+      MaxRetries: 0
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: s3://${self:custom.bucketName}/scripts/run_stage.py
+      DefaultArguments:
+        --job-language: python
+        --TempDir: s3://${self:custom.bucketName}/tmp/
+        --extra-py-files: s3://${self:custom.bucketName}/scripts/src.zip
+        --additional-python-modules: ${self:custom.pythonModules}
+        --data_dir: s3://${self:custom.bucketName}
+        --stage: silver
+
+  GoldJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ${self:custom.prefix}-gold
+      Role: !GetAtt GlueJobRole.Arn
+      GlueVersion: '5.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 20
+      MaxRetries: 0
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: s3://${self:custom.bucketName}/scripts/run_stage.py
+      DefaultArguments:
+        --job-language: python
+        --TempDir: s3://${self:custom.bucketName}/tmp/
+        --extra-py-files: s3://${self:custom.bucketName}/scripts/src.zip
+        --additional-python-modules: ${self:custom.pythonModules}
+        --data_dir: s3://${self:custom.bucketName}
+        --stage: gold
+
+  ModelsJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ${self:custom.prefix}-models
+      Role: !GetAtt GlueJobRole.Arn
+      GlueVersion: '5.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 20
+      MaxRetries: 0
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: s3://${self:custom.bucketName}/scripts/run_stage.py
+      DefaultArguments:
+        --job-language: python
+        --TempDir: s3://${self:custom.bucketName}/tmp/
+        --extra-py-files: s3://${self:custom.bucketName}/scripts/src.zip
+        --additional-python-modules: ${self:custom.pythonModules}
+        --data_dir: s3://${self:custom.bucketName}
+        --stage: models

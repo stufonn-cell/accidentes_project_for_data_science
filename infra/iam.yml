@@ -1,0 +1,144 @@
+Resources:
+  # Used by the Glue jobs and by the crawler
+  GlueJobRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:custom.prefix}-glue-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: glue.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSGlueServiceRole
+      Policies:
+        - PolicyName: ReadAndWriteTheLake
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - s3:DeleteObject
+                  - s3:GetObject
+                  - s3:PutObject
+                Resource: !Sub ${LakeBucket.Arn}/*
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !GetAtt LakeBucket.Arn
+
+  StateMachineRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:custom.prefix}-machine-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: states.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: RunThePipeline
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - glue:BatchStopJobRun
+                  - glue:GetJobRun
+                  - glue:GetJobRuns
+                  - glue:StartJobRun
+                Resource:
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:job/${self:custom.prefix}-*
+              - Effect: Allow
+                Action: glue:StartCrawler
+                Resource: !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:crawler/${self:custom.prefix}-crawler
+              - Effect: Allow
+                Action: sns:Publish
+                Resource: !Ref AlertsTopic
+
+  SchedulerRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: ${self:custom.prefix}-schedule-role
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: scheduler.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: StartTheStateMachine
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: states:StartExecution
+                Resource: !Ref PipelineStateMachine
+
+  # Read-only user for Power BI. It can run queries in the project workgroup,
+  # read the catalog and the gold layer, and write query results. Its access
+  # key is created by infra/scripts/powerbi.sh, never stored in the stack.
+  PowerBIUser:
+    Type: AWS::IAM::User
+    Properties:
+      UserName: ${self:custom.prefix}-powerbi
+      Policies:
+        - PolicyName: ReadGoldThroughAthena
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - athena:ListDataCatalogs
+                  - athena:ListWorkGroups
+                Resource: '*'
+              - Effect: Allow
+                Action:
+                  - athena:GetDataCatalog
+                  - athena:GetDatabase
+                  - athena:GetQueryExecution
+                  - athena:GetQueryResults
+                  - athena:GetTableMetadata
+                  - athena:GetWorkGroup
+                  - athena:ListDatabases
+                  - athena:ListQueryExecutions
+                  - athena:ListTableMetadata
+                  - athena:StartQueryExecution
+                  - athena:StopQueryExecution
+                Resource:
+                  - !Sub arn:aws:athena:${AWS::Region}:${AWS::AccountId}:workgroup/${self:custom.prefix}
+                  - !Sub arn:aws:athena:${AWS::Region}:${AWS::AccountId}:datacatalog/AwsDataCatalog
+              - Effect: Allow
+                Action:
+                  - glue:BatchGetPartition
+                  - glue:GetDatabase
+                  - glue:GetDatabases
+                  - glue:GetPartition
+                  - glue:GetPartitions
+                  - glue:GetTable
+                  - glue:GetTables
+                Resource:
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:catalog
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:database/*
+                  - !Sub arn:aws:glue:${AWS::Region}:${AWS::AccountId}:table/${self:custom.databaseName}/*
+              - Effect: Allow
+                Action:
+                  - s3:GetBucketLocation
+                  - s3:ListBucket
+                Resource: !GetAtt LakeBucket.Arn
+              - Effect: Allow
+                Action: s3:GetObject
+                Resource:
+                  - !Sub ${LakeBucket.Arn}/gold/*
+                  - !Sub ${LakeBucket.Arn}/athena-results/*
+              - Effect: Allow
+                Action:
+                  - s3:AbortMultipartUpload
+                  - s3:PutObject
+                Resource: !Sub ${LakeBucket.Arn}/athena-results/*

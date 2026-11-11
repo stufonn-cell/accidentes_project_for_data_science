@@ -1,0 +1,94 @@
+Resources:
+  # bronze -> silver -> gold -> models -> crawler. Each Glue stage retries
+  # once, and any failure publishes the error to SNS before failing.
+  PipelineStateMachine:
+    Type: AWS::StepFunctions::StateMachine
+    Properties:
+      StateMachineName: ${self:custom.prefix}-pipeline
+      StateMachineType: STANDARD
+      RoleArn: !GetAtt StateMachineRole.Arn
+      DefinitionString: |
+        {
+          "Comment": "Pipeline batch de siniestros de Envigado",
+          "StartAt": "Bronze",
+          "States": {
+            "Bronze": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": { "JobName": "${self:custom.prefix}-bronze" },
+              "ResultPath": null,
+              "TimeoutSeconds": 1800,
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
+              "Next": "Silver"
+            },
+            "Silver": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": { "JobName": "${self:custom.prefix}-silver" },
+              "ResultPath": null,
+              "TimeoutSeconds": 1800,
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
+              "Next": "Gold"
+            },
+            "Gold": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": { "JobName": "${self:custom.prefix}-gold" },
+              "ResultPath": null,
+              "TimeoutSeconds": 1800,
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
+              "Next": "Models"
+            },
+            "Models": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": { "JobName": "${self:custom.prefix}-models" },
+              "ResultPath": null,
+              "TimeoutSeconds": 1800,
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
+              "Next": "Catalog"
+            },
+            "Catalog": {
+              "Comment": "Starts the crawler without waiting. If it is already running the data is still fine, so it does not fail the pipeline.",
+              "Type": "Task",
+              "Resource": "arn:aws:states:::aws-sdk:glue:startCrawler",
+              "Parameters": { "Name": "${self:custom.prefix}-crawler" },
+              "ResultPath": null,
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.crawlerError", "Next": "NotifySuccess" }],
+              "Next": "NotifySuccess"
+            },
+            "NotifySuccess": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sns:publish",
+              "Parameters": {
+                "TopicArn": "${AlertsTopic}",
+                "Subject": "Pipeline accidentes-envigado: OK",
+                "Message": "El pipeline termino: bronze, silver, gold y modelos actualizados."
+              },
+              "ResultPath": null,
+              "End": true
+            },
+            "NotifyFailure": {
+              "Type": "Task",
+              "Resource": "arn:aws:states:::sns:publish",
+              "Parameters": {
+                "TopicArn": "${AlertsTopic}",
+                "Subject": "Pipeline accidentes-envigado: FALLO",
+                "Message.$": "States.JsonToString($.error)"
+              },
+              "ResultPath": null,
+              "Next": "PipelineFailed"
+            },
+            "PipelineFailed": {
+              "Type": "Fail",
+              "Error": "PipelineFailed",
+              "Cause": "Una etapa de Glue fallo despues de su reintento. Revisa el error en NotifyFailure y los logs en /aws-glue/jobs/error."
+            }
+          }
+        }
+      DefinitionSubstitutions:
+        AlertsTopic: !Ref AlertsTopic

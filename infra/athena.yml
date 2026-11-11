@@ -1,0 +1,16 @@
+Resources:
+  AthenaWorkGroup:
+    Type: AWS::Athena::WorkGroup
+    Properties:
+      Name: ${self:custom.prefix}
+      Description: Consultas sobre el lago de siniestros de Envigado
+      State: ENABLED
+      # Lets CloudFormation delete the workgroup even if it has saved queries
+      RecursiveDeleteOption: true
+      WorkGroupConfiguration:
+        EnforceWorkGroupConfiguration: true
+        PublishCloudWatchMetricsEnabled: false
+        # A query that would scan more than 1 GB is cancelled
+        BytesScannedCutoffPerQuery: 1000000000
+        ResultConfiguration:
+          OutputLocation: s3://${self:custom.bucketName}/athena-results/

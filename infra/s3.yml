@@ -1,0 +1,25 @@
+Resources:
+  LakeBucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: ${self:custom.bucketName}
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault:
+              SSEAlgorithm: AES256
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      # Query results and Glue temp files are disposable
+      LifecycleConfiguration:
+        Rules:
+          - Id: ExpireAthenaResults
+            Status: Enabled
+            Prefix: athena-results/
+            ExpirationInDays: 7
+          - Id: ExpireGlueTemp
+            Status: Enabled
+            Prefix: tmp/
+            ExpirationInDays: 2

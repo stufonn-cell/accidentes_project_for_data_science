@@ -1,0 +1,18 @@
+Conditions:
+  HasAlertEmail: !Not [!Equals ['${self:custom.alertEmail}', '']]
+
+Resources:
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: ${self:custom.prefix}-alerts
+
+  # Only created when deploying with --param="alertEmail=...".
+  # AWS sends a confirmation email that must be accepted once.
+  AlertsEmail:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlertEmail
+    Properties:
+      TopicArn: !Ref AlertsTopic
+      Protocol: email
+      Endpoint: ${self:custom.alertEmail}

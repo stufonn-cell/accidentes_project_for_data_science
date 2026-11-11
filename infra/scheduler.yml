@@ -1,0 +1,15 @@
+Resources:
+  # Runs the pipeline on the 1st of every month at 6:00 Bogota time.
+  # Created DISABLED so a deploy never starts paid runs by itself.
+  PipelineSchedule:
+    Type: AWS::Scheduler::Schedule
+    Properties:
+      Name: ${self:custom.prefix}-monthly
+      State: ${self:custom.scheduleState}
+      ScheduleExpression: cron(0 6 1 * ? *)
+      ScheduleExpressionTimezone: America/Bogota
+      FlexibleTimeWindow:
+        Mode: 'OFF'
+      Target:
+        Arn: !Ref PipelineStateMachine
+        RoleArn: !GetAtt SchedulerRole.Arn

@@ -1,0 +1,31 @@
+service: accidentes-envigado
+frameworkVersion: '^4.43.0'
+configValidationMode: error
+
+provider:
+  name: aws
+  stage: dev
+  region: us-east-1
+  stackName: ${self:service}
+
+resources:
+  - ${file(s3.yml)}
+  - ${file(iam.yml)}
+  - ${file(glue.yml)}
+  - ${file(athena.yml)}
+  - ${file(sns.yml)}
+  - ${file(stepfunctions.yml)}
+  - ${file(scheduler.yml)}
+  - ${file(outputs.yml)}
+
+custom:
+  prefix: ${self:service}
+  # The account id makes the bucket name unique across AWS accounts
+  bucketName: ${self:service}-lake-${aws:accountId}
+  databaseName: accidentes_envigado
+  # Same versions as requirements.txt, minus the plotting libraries
+  pythonModules: pandas==3.0.3,numpy==2.4.4,pyarrow==24.0.0,scikit-learn==1.9.0,joblib==1.5.3
+  # The schedule is created disabled: enable it with --param="scheduleState=ENABLED"
+  scheduleState: ${param:scheduleState, 'DISABLED'}
+  # Optional email for failure alerts: --param="alertEmail=you@example.com"
+  alertEmail: ${param:alertEmail, ''}
