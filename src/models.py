@@ -6,6 +6,7 @@ the past. Compares a logistic regression against a gradient boosting
 and stores metrics, predictions and models in the gold layer.
 """
 
+import io
 import json
 
 import joblib
@@ -56,12 +57,36 @@ def evaluate(y_true, proba):
     }
 
 
-def main():
-    df = pd.read_parquet(config.GOLD_SINIESTROS)
-    df["año"] = df["año"].astype(int)
+def metrics_table(results):
+    """One row per model with its metrics, the flat version of metricas.json."""
+    rows = []
+    for name, metrics in results["modelos"].items():
+        (tn, fp), (fn, tp) = metrics["matriz_confusion"]
+        rows.append({
+            "modelo": name,
+            "es_mejor": int(name == results["mejor_modelo"]),
+            "roc_auc": metrics["roc_auc"],
+            "average_precision": metrics["average_precision"],
+            "brier": metrics["brier"],
+            "precision": metrics["precision"],
+            "recall": metrics["recall"],
+            "verdaderos_negativos": tn,
+            "falsos_positivos": fp,
+            "falsos_negativos": fn,
+            "verdaderos_positivos": tp,
+            "filas_entrenamiento": results["particion"]["filas_entrenamiento"],
+            "filas_prueba": results["particion"]["filas_prueba"],
+            "prevalencia_prueba": results["particion"]["prevalencia_prueba"],
+        })
+    return pd.DataFrame(rows)
 
-    train = df[df["año"] < SPLIT_YEAR]
-    test = df[df["año"] >= SPLIT_YEAR]
+
+def main():
+    df = config.read_parquet(config.GOLD_SINIESTROS)
+    df["anio"] = df["anio"].astype(int)
+
+    train = df[df["anio"] < SPLIT_YEAR]
+    test = df[df["anio"] >= SPLIT_YEAR]
     x_train = train[CATEGORICAL + NUMERIC]
     x_test = test[CATEGORICAL + NUMERIC]
 
@@ -85,18 +110,22 @@ def main():
         proba = model.predict_proba(x_test)[:, 1]
         probas[name] = proba
         results["modelos"][name] = evaluate(test[TARGET], proba)
-        if not config.IS_CLOUD:
-            joblib.dump(model, f"{config.GOLD_MODELOS}/{name}.joblib")
+        buffer = io.BytesIO()
+        joblib.dump(model, buffer)
+        config.write_bytes(f"{config.GOLD_MODELOS}/{name}.joblib", buffer.getvalue())
 
     best = max(results["modelos"], key=lambda m: results["modelos"][m]["roc_auc"])
     results["mejor_modelo"] = best
 
-    predictions = test[["radicado", "fecha", "año", "barrio", TARGET]].copy()
+    # Each table in its own folder so Athena, and through it Power BI, can read it
+    predictions = test[["radicado", "fecha", "anio", "barrio", TARGET]].copy()
     predictions["probabilidad"] = probas[best]
-    predictions.to_parquet(f"{config.GOLD_MODELOS}/predicciones.parquet", index=False)
+    config.write_parquet(predictions, f"{config.GOLD_MODELOS}/predicciones/predicciones.parquet")
+    config.write_parquet(metrics_table(results),
+                         f"{config.GOLD_MODELOS}/metricas/metricas.parquet")
 
-    with open(f"{config.GOLD_MODELOS}/metricas.json", "w", encoding="utf-8") as f:
-        json.dump(results, f, ensure_ascii=False, indent=2)
+    config.write_text(f"{config.GOLD_MODELOS}/metricas.json",
+                      json.dumps(results, ensure_ascii=False, indent=2))
 
     print(json.dumps(results["modelos"], indent=2))
     print(f"best model: {best}")

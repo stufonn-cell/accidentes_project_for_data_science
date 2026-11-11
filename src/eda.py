@@ -56,7 +56,7 @@ def neighborhoods(accidents):
 
 
 def severity_by_year(accidents):
-    table = accidents.pivot_table(index="año", columns="gravedad",
+    table = accidents.pivot_table(index="anio", columns="gravedad",
                                   values="radicado", aggfunc="size", fill_value=0)
     share = table.div(table.sum(axis=1), axis=0)
     fig, ax = plt.subplots(figsize=(9, 4))
@@ -107,8 +107,8 @@ def summary(accidents):
 
 
 def main():
-    accidents = pd.read_parquet(config.GOLD_SINIESTROS)
-    accidents["año"] = accidents["año"].astype(int)
+    accidents = config.read_parquet(config.GOLD_SINIESTROS)
+    accidents["anio"] = accidents["anio"].astype(int)
 
     monthly_series(accidents)
     day_and_hour(accidents)

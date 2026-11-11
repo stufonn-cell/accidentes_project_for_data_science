@@ -3,9 +3,11 @@
 Builds one row per accident from the silver layer, keeping the highest
 severity among its records, plus the aggregates consumed by the
 dashboard and the models.
-"""
 
-import pandas as pd
+Gold is what Power BI reads through Athena, so its names are plain ASCII:
+the year column is `anio` instead of `año`, and every aggregate goes in
+its own folder because Athena maps one folder to one table.
+"""
 
 from src import config
 
@@ -19,7 +21,7 @@ def build_accidents(df):
     accidents = df.groupby("radicado", as_index=False).agg(
         fecha_hora=("fecha_hora", "first"),
         fecha=("fecha", "first"),
-        año=("año", "first"),
+        anio=("año", "first"),
         mes=("mes", "first"),
         dia_semana=("dia_semana", "first"),
         hora=("hora", "first"),
@@ -43,7 +45,7 @@ def build_aggregates(accidents):
     tables = {}
 
     tables["por_mes"] = (
-        accidents.groupby(["año", "mes"], as_index=False)
+        accidents.groupby(["anio", "mes"], as_index=False)
         .agg(siniestros=("radicado", "size"), con_victimas=("con_victimas", "sum"))
     )
     tables["por_barrio"] = (
@@ -66,25 +68,25 @@ def build_aggregates(accidents):
         .agg(siniestros=("radicado", "size"), con_victimas=("con_victimas", "sum"))
         .sort_values("siniestros", ascending=False)
     )
-    tables["por_gravedad_año"] = (
-        accidents.groupby(["año", "gravedad"], as_index=False)
+    tables["por_gravedad_anio"] = (
+        accidents.groupby(["anio", "gravedad"], as_index=False)
         .agg(siniestros=("radicado", "size"))
     )
     return tables
 
 
 def main():
-    df = pd.read_parquet(config.SILVER)
+    df = config.read_parquet(config.SILVER)
     df["año"] = df["año"].astype(int)
 
     accidents = build_accidents(df)
     config.prepare(config.GOLD_SINIESTROS)
-    accidents.to_parquet(config.GOLD_SINIESTROS, index=False, partition_cols=["año"])
+    config.write_parquet(accidents, config.GOLD_SINIESTROS, partition_cols=["anio"])
 
     tables = build_aggregates(accidents)
     config.prepare(config.GOLD_AGREGADOS)
     for name, table in tables.items():
-        table.to_parquet(f"{config.GOLD_AGREGADOS}/{name}.parquet", index=False)
+        config.write_parquet(table, f"{config.GOLD_AGREGADOS}/{name}/{name}.parquet")
 
     print(f"gold: {len(accidents)} accidents and {len(tables)} aggregates written")
 

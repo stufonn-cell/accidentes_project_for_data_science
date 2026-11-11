@@ -33,7 +33,7 @@ def shift(df, months):
 
 
 def main():
-    df = pd.read_parquet(config.SILVER)
+    df = config.read_parquet(config.SILVER)
     df = df.drop(columns="año")
 
     copies = math.ceil(TARGET_ROWS / len(df))
@@ -46,7 +46,7 @@ def main():
         batch.append(shift(df, months))
         if len(batch) == BATCH or months == shifts[-1]:
             chunk = pd.concat(batch, ignore_index=True)
-            chunk.to_parquet(config.EXPANDED, index=False, partition_cols=["año"])
+            config.write_parquet(chunk, config.EXPANDED, partition_cols=["año"])
             total += len(chunk)
             batch = []
             print(f"expanded: {total} rows so far")

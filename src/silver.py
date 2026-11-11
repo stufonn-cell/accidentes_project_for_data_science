@@ -77,7 +77,7 @@ def extract_coordinates(series):
 
 
 def main():
-    df = pd.read_parquet(config.BRONZE)
+    df = config.read_parquet(config.BRONZE)
     bronze_rows = len(df)
 
     duplicates = df.duplicated(subset=[c for c in df.columns if c != "año"])
@@ -112,7 +112,7 @@ def main():
     df = df[columns]
 
     config.prepare(config.SILVER)
-    df.to_parquet(config.SILVER, index=False, partition_cols=["año"])
+    config.write_parquet(df, config.SILVER, partition_cols=["año"])
     print(f"silver: {bronze_rows} rows in bronze, {int(duplicates.sum())} duplicates, "
           f"{invalid} invalid, {len(df)} rows written to {config.SILVER}")
 

@@ -1,0 +1,672 @@
+{
+  "compatibilityLevel": 1567,
+  "model": {
+    "culture": "es-CO",
+    "dataAccessOptions": {
+      "legacyRedirects": true,
+      "returnErrorValuesAsNull": true
+    },
+    "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "sourceQueryCulture": "es-CO",
+    "tables": [
+      {
+        "name": "siniestros",
+        "columns": [
+          {
+            "name": "radicado",
+            "dataType": "string",
+            "sourceColumn": "radicado",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "fecha_hora",
+            "dataType": "dateTime",
+            "sourceColumn": "fecha_hora",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "fecha",
+            "dataType": "dateTime",
+            "sourceColumn": "fecha",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "anio",
+            "dataType": "int64",
+            "sourceColumn": "anio",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "mes",
+            "dataType": "int64",
+            "sourceColumn": "mes",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "dia_semana",
+            "dataType": "string",
+            "sourceColumn": "dia_semana",
+            "summarizeBy": "none",
+            "sortByColumn": "dia_num"
+          },
+          {
+            "name": "dia_num",
+            "dataType": "int64",
+            "sourceColumn": "dia_num",
+            "summarizeBy": "none",
+            "isHidden": true
+          },
+          {
+            "name": "hora",
+            "dataType": "int64",
+            "sourceColumn": "hora",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "franja",
+            "dataType": "string",
+            "sourceColumn": "franja",
+            "summarizeBy": "none",
+            "sortByColumn": "franja_orden"
+          },
+          {
+            "name": "franja_orden",
+            "dataType": "int64",
+            "sourceColumn": "franja_orden",
+            "summarizeBy": "none",
+            "isHidden": true
+          },
+          {
+            "name": "clase_accidente",
+            "dataType": "string",
+            "sourceColumn": "clase_accidente",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "causa",
+            "dataType": "string",
+            "sourceColumn": "causa",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "barrio",
+            "dataType": "string",
+            "sourceColumn": "barrio",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "area",
+            "dataType": "string",
+            "sourceColumn": "area",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "registros",
+            "dataType": "int64",
+            "sourceColumn": "registros",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "lon",
+            "dataType": "double",
+            "sourceColumn": "lon",
+            "summarizeBy": "none",
+            "dataCategory": "Longitude"
+          },
+          {
+            "name": "lat",
+            "dataType": "double",
+            "sourceColumn": "lat",
+            "summarizeBy": "none",
+            "dataCategory": "Latitude"
+          },
+          {
+            "name": "gravedad",
+            "dataType": "string",
+            "sourceColumn": "gravedad",
+            "summarizeBy": "none",
+            "sortByColumn": "gravedad_orden"
+          },
+          {
+            "name": "gravedad_orden",
+            "dataType": "int64",
+            "sourceColumn": "gravedad_orden",
+            "summarizeBy": "none",
+            "isHidden": true
+          },
+          {
+            "name": "con_victimas",
+            "dataType": "int64",
+            "sourceColumn": "con_victimas",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "siniestros",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Datos = if FuenteDatos = \"Athena\"",
+                "        then Odbc.Query(\"dsn=\" & DsnAthena, \"SELECT * FROM siniestros\")",
+                "        else LeerGold(\"siniestros\"),",
+                "    Columnas = Table.SelectColumns(Datos, {\"radicado\", \"fecha_hora\", \"fecha\", \"anio\", \"mes\", \"dia_semana\", \"hora\", \"franja\", \"clase_accidente\", \"causa\", \"barrio\", \"area\", \"registros\", \"lon\", \"lat\", \"gravedad\", \"con_victimas\"}),",
+                "    Tipos = Table.TransformColumnTypes(Columnas, {{\"radicado\", type text}, {\"fecha_hora\", type datetime}, {\"fecha\", type date}, {\"anio\", Int64.Type}, {\"mes\", Int64.Type}, {\"dia_semana\", type text}, {\"hora\", Int64.Type}, {\"franja\", type text}, {\"clase_accidente\", type text}, {\"causa\", type text}, {\"barrio\", type text}, {\"area\", type text}, {\"registros\", Int64.Type}, {\"lon\", type number}, {\"lat\", type number}, {\"gravedad\", type text}, {\"con_victimas\", Int64.Type}}),",
+                "    // Readable labels and a sort order for the categories",
+                "    Dias = [lunes = \"Lunes\", martes = \"Martes\", miercoles = \"Miércoles\", jueves = \"Jueves\",",
+                "            viernes = \"Viernes\", sabado = \"Sábado\", domingo = \"Domingo\"],",
+                "    OrdenDias = [lunes = 1, martes = 2, miercoles = 3, jueves = 4, viernes = 5, sabado = 6, domingo = 7],",
+                "    Franjas = [madrugada = \"Madrugada\", manana = \"Mañana\", tarde = \"Tarde\", noche = \"Noche\"],",
+                "    OrdenFranjas = [madrugada = 1, manana = 2, tarde = 3, noche = 4],",
+                "    Gravedades = [#\"SOLO DAÑOS\" = \"Solo daños\", HERIDOS = \"Heridos\", MUERTOS = \"Muertos\"],",
+                "    OrdenGravedades = [#\"SOLO DAÑOS\" = 1, HERIDOS = 2, MUERTOS = 3],",
+                "    ConDiaNum = Table.AddColumn(Tipos, \"dia_num\", each Record.FieldOrDefault(OrdenDias, [dia_semana], 8), Int64.Type),",
+                "    ConFranjaNum = Table.AddColumn(ConDiaNum, \"franja_orden\", each Record.FieldOrDefault(OrdenFranjas, [franja], 5), Int64.Type),",
+                "    ConGravedadNum = Table.AddColumn(ConFranjaNum, \"gravedad_orden\", each Record.FieldOrDefault(OrdenGravedades, [gravedad], 4), Int64.Type),",
+                "    Etiquetas = Table.TransformColumns(ConGravedadNum, {",
+                "        {\"dia_semana\", each Record.FieldOrDefault(Dias, _, _), type text},",
+                "        {\"franja\", each Record.FieldOrDefault(Franjas, _, _), type text},",
+                "        {\"gravedad\", each Record.FieldOrDefault(Gravedades, _, _), type text}",
+                "    })",
+                "in",
+                "    Etiquetas"
+              ]
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "Total siniestros",
+            "expression": "COUNTROWS(siniestros)",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Con víctimas",
+            "expression": "SUM(siniestros[con_victimas])",
+            "formatString": "#,0"
+          },
+          {
+            "name": "% con víctimas",
+            "expression": "DIVIDE([Con víctimas], [Total siniestros])",
+            "formatString": "0.0%"
+          },
+          {
+            "name": "Con muertos",
+            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Muertos\"))",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Con heridos",
+            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Heridos\"))",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Solo daños",
+            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Solo daños\"))",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Siniestros año anterior",
+            "expression": "CALCULATE([Total siniestros], SAMEPERIODLASTYEAR(Calendario[Fecha]))",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Variación anual",
+            "expression": "DIVIDE([Total siniestros] - [Siniestros año anterior], [Siniestros año anterior])",
+            "formatString": "0.0%"
+          }
+        ]
+      },
+      {
+        "name": "predicciones",
+        "columns": [
+          {
+            "name": "radicado",
+            "dataType": "string",
+            "sourceColumn": "radicado",
+            "summarizeBy": "none",
+            "isHidden": true
+          },
+          {
+            "name": "fecha",
+            "dataType": "dateTime",
+            "sourceColumn": "fecha",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "anio",
+            "dataType": "int64",
+            "sourceColumn": "anio",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "barrio",
+            "dataType": "string",
+            "sourceColumn": "barrio",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "con_victimas",
+            "dataType": "int64",
+            "sourceColumn": "con_victimas",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "probabilidad",
+            "dataType": "double",
+            "sourceColumn": "probabilidad",
+            "summarizeBy": "none",
+            "formatString": "0.0%"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "predicciones",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Datos = if FuenteDatos = \"Athena\"",
+                "        then Odbc.Query(\"dsn=\" & DsnAthena, \"SELECT * FROM predicciones\")",
+                "        else LeerGold(\"modelos\\predicciones\"),",
+                "    Columnas = Table.SelectColumns(Datos, {\"radicado\", \"fecha\", \"anio\", \"barrio\", \"con_victimas\", \"probabilidad\"}),",
+                "    Tipos = Table.TransformColumnTypes(Columnas, {{\"radicado\", type text}, {\"fecha\", type date}, {\"anio\", Int64.Type}, {\"barrio\", type text}, {\"con_victimas\", Int64.Type}, {\"probabilidad\", type number}})",
+                "in",
+                "    Tipos"
+              ]
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "Siniestros evaluados",
+            "expression": "COUNTROWS(predicciones)",
+            "formatString": "#,0"
+          },
+          {
+            "name": "Probabilidad media",
+            "expression": "AVERAGE(predicciones[probabilidad])",
+            "formatString": "0.0%"
+          },
+          {
+            "name": "Tasa real de víctimas",
+            "expression": "AVERAGE(predicciones[con_victimas])",
+            "formatString": "0.0%"
+          }
+        ]
+      },
+      {
+        "name": "metricas",
+        "columns": [
+          {
+            "name": "modelo",
+            "dataType": "string",
+            "sourceColumn": "modelo",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "es_mejor",
+            "dataType": "int64",
+            "sourceColumn": "es_mejor",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "roc_auc",
+            "dataType": "double",
+            "sourceColumn": "roc_auc",
+            "summarizeBy": "none",
+            "formatString": "0.000"
+          },
+          {
+            "name": "average_precision",
+            "dataType": "double",
+            "sourceColumn": "average_precision",
+            "summarizeBy": "none",
+            "formatString": "0.000"
+          },
+          {
+            "name": "brier",
+            "dataType": "double",
+            "sourceColumn": "brier",
+            "summarizeBy": "none",
+            "formatString": "0.000"
+          },
+          {
+            "name": "precision",
+            "dataType": "double",
+            "sourceColumn": "precision",
+            "summarizeBy": "none",
+            "formatString": "0.0%"
+          },
+          {
+            "name": "recall",
+            "dataType": "double",
+            "sourceColumn": "recall",
+            "summarizeBy": "none",
+            "formatString": "0.0%"
+          },
+          {
+            "name": "verdaderos_negativos",
+            "dataType": "int64",
+            "sourceColumn": "verdaderos_negativos",
+            "summarizeBy": "none",
+            "formatString": "#,0"
+          },
+          {
+            "name": "falsos_positivos",
+            "dataType": "int64",
+            "sourceColumn": "falsos_positivos",
+            "summarizeBy": "none",
+            "formatString": "#,0"
+          },
+          {
+            "name": "falsos_negativos",
+            "dataType": "int64",
+            "sourceColumn": "falsos_negativos",
+            "summarizeBy": "none",
+            "formatString": "#,0"
+          },
+          {
+            "name": "verdaderos_positivos",
+            "dataType": "int64",
+            "sourceColumn": "verdaderos_positivos",
+            "summarizeBy": "none",
+            "formatString": "#,0"
+          },
+          {
+            "name": "filas_entrenamiento",
+            "dataType": "int64",
+            "sourceColumn": "filas_entrenamiento",
+            "summarizeBy": "none",
+            "formatString": "#,0"
+          },
+          {
+            "name": "filas_prueba",
+            "dataType": "int64",
+            "sourceColumn": "filas_prueba",
+            "summarizeBy": "none",
+            "formatString": "#,0"
+          },
+          {
+            "name": "prevalencia_prueba",
+            "dataType": "double",
+            "sourceColumn": "prevalencia_prueba",
+            "summarizeBy": "none",
+            "formatString": "0.0%"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "metricas",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Datos = if FuenteDatos = \"Athena\"",
+                "        then Odbc.Query(\"dsn=\" & DsnAthena, \"SELECT * FROM metricas\")",
+                "        else LeerGold(\"modelos\\metricas\"),",
+                "    Columnas = Table.SelectColumns(Datos, {\"modelo\", \"es_mejor\", \"roc_auc\", \"average_precision\", \"brier\", \"precision\", \"recall\", \"verdaderos_negativos\", \"falsos_positivos\", \"falsos_negativos\", \"verdaderos_positivos\", \"filas_entrenamiento\", \"filas_prueba\", \"prevalencia_prueba\"}),",
+                "    Tipos = Table.TransformColumnTypes(Columnas, {{\"modelo\", type text}, {\"es_mejor\", Int64.Type}, {\"roc_auc\", type number}, {\"average_precision\", type number}, {\"brier\", type number}, {\"precision\", type number}, {\"recall\", type number}, {\"verdaderos_negativos\", Int64.Type}, {\"falsos_positivos\", Int64.Type}, {\"falsos_negativos\", Int64.Type}, {\"verdaderos_positivos\", Int64.Type}, {\"filas_entrenamiento\", Int64.Type}, {\"filas_prueba\", Int64.Type}, {\"prevalencia_prueba\", type number}}),",
+                "    Nombres = [regresion_logistica = \"Regresión logística\", gradient_boosting = \"Gradient boosting\"],",
+                "    Etiquetas = Table.TransformColumns(Tipos, {{\"modelo\", each Record.FieldOrDefault(Nombres, _, _), type text}})",
+                "in",
+                "    Etiquetas"
+              ]
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "Mejor modelo",
+            "expression": "CALCULATE(MAX(metricas[modelo]), metricas[es_mejor] = 1)"
+          },
+          {
+            "name": "ROC AUC mejor modelo",
+            "expression": "CALCULATE(MAX(metricas[roc_auc]), metricas[es_mejor] = 1)",
+            "formatString": "0.000"
+          },
+          {
+            "name": "Precisión mejor modelo",
+            "expression": "CALCULATE(MAX(metricas[precision]), metricas[es_mejor] = 1)",
+            "formatString": "0.0%"
+          },
+          {
+            "name": "Recall mejor modelo",
+            "expression": "CALCULATE(MAX(metricas[recall]), metricas[es_mejor] = 1)",
+            "formatString": "0.0%"
+          }
+        ]
+      },
+      {
+        "name": "matriz_confusion",
+        "columns": [
+          {
+            "name": "modelo",
+            "dataType": "string",
+            "sourceColumn": "modelo",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "real",
+            "dataType": "string",
+            "sourceColumn": "real",
+            "summarizeBy": "none",
+            "sortByColumn": "orden_real"
+          },
+          {
+            "name": "predicho",
+            "dataType": "string",
+            "sourceColumn": "predicho",
+            "summarizeBy": "none",
+            "sortByColumn": "orden_predicho"
+          },
+          {
+            "name": "casos",
+            "dataType": "int64",
+            "sourceColumn": "casos",
+            "summarizeBy": "none",
+            "formatString": "#,0"
+          },
+          {
+            "name": "orden_real",
+            "dataType": "int64",
+            "sourceColumn": "orden_real",
+            "summarizeBy": "none",
+            "isHidden": true
+          },
+          {
+            "name": "orden_predicho",
+            "dataType": "int64",
+            "sourceColumn": "orden_predicho",
+            "summarizeBy": "none",
+            "isHidden": true
+          }
+        ],
+        "partitions": [
+          {
+            "name": "matriz_confusion",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    // Confusion matrix of the selected model, one row per cell",
+                "    Mejor = Table.SelectRows(metricas, each [es_mejor] = 1),",
+                "    Celdas = Table.AddColumn(Mejor, \"celdas\", each {",
+                "        [modelo = [modelo], real = \"Con víctimas\", predicho = \"Con víctimas\", casos = [verdaderos_positivos], orden_real = 1, orden_predicho = 1],",
+                "        [modelo = [modelo], real = \"Con víctimas\", predicho = \"Solo daños\", casos = [falsos_negativos], orden_real = 1, orden_predicho = 2],",
+                "        [modelo = [modelo], real = \"Solo daños\", predicho = \"Con víctimas\", casos = [falsos_positivos], orden_real = 2, orden_predicho = 1],",
+                "        [modelo = [modelo], real = \"Solo daños\", predicho = \"Solo daños\", casos = [verdaderos_negativos], orden_real = 2, orden_predicho = 2]",
+                "    }),",
+                "    Tabla = Table.FromRecords(List.Combine(Celdas[celdas]),",
+                "        type table [modelo = text, real = text, predicho = text, casos = Int64.Type,",
+                "                    orden_real = Int64.Type, orden_predicho = Int64.Type])",
+                "in",
+                "    Tabla"
+              ]
+            }
+          }
+        ],
+        "measures": [
+          {
+            "name": "Total casos",
+            "expression": "SUM(matriz_confusion[casos])",
+            "formatString": "#,0"
+          }
+        ]
+      },
+      {
+        "name": "Calendario",
+        "columns": [
+          {
+            "name": "Fecha",
+            "dataType": "dateTime",
+            "sourceColumn": "Fecha",
+            "summarizeBy": "none",
+            "isKey": true
+          },
+          {
+            "name": "Año",
+            "dataType": "int64",
+            "sourceColumn": "Año",
+            "summarizeBy": "none"
+          },
+          {
+            "name": "Mes num",
+            "dataType": "int64",
+            "sourceColumn": "Mes num",
+            "summarizeBy": "none",
+            "isHidden": true
+          },
+          {
+            "name": "Mes",
+            "dataType": "string",
+            "sourceColumn": "Mes",
+            "summarizeBy": "none",
+            "sortByColumn": "Mes num"
+          },
+          {
+            "name": "Inicio de mes",
+            "dataType": "dateTime",
+            "sourceColumn": "Inicio de mes",
+            "summarizeBy": "none"
+          }
+        ],
+        "partitions": [
+          {
+            "name": "Calendario",
+            "mode": "import",
+            "source": {
+              "type": "m",
+              "expression": [
+                "let",
+                "    Inicio = #date(2010, 1, 1),",
+                "    Fin = #date(2022, 12, 31),",
+                "    Fechas = List.Dates(Inicio, Duration.Days(Fin - Inicio) + 1, #duration(1, 0, 0, 0)),",
+                "    Tabla = Table.FromList(Fechas, Splitter.SplitByNothing(), type table [Fecha = date]),",
+                "    ConAnio = Table.AddColumn(Tabla, \"Año\", each Date.Year([Fecha]), Int64.Type),",
+                "    ConMesNum = Table.AddColumn(ConAnio, \"Mes num\", each Date.Month([Fecha]), Int64.Type),",
+                "    Meses = {\"Ene\", \"Feb\", \"Mar\", \"Abr\", \"May\", \"Jun\", \"Jul\", \"Ago\", \"Sep\", \"Oct\", \"Nov\", \"Dic\"},",
+                "    ConMes = Table.AddColumn(ConMesNum, \"Mes\", each Meses{Date.Month([Fecha]) - 1}, type text),",
+                "    ConInicioMes = Table.AddColumn(ConMes, \"Inicio de mes\", each Date.StartOfMonth([Fecha]), type date)",
+                "in",
+                "    ConInicioMes"
+              ]
+            }
+          }
+        ],
+        "dataCategory": "Time"
+      }
+    ],
+    "relationships": [
+      {
+        "name": "siniestros_calendario",
+        "fromTable": "siniestros",
+        "fromColumn": "fecha",
+        "toTable": "Calendario",
+        "toColumn": "Fecha"
+      },
+      {
+        "name": "predicciones_siniestros",
+        "fromTable": "predicciones",
+        "fromColumn": "radicado",
+        "toTable": "siniestros",
+        "toColumn": "radicado"
+      }
+    ],
+    "expressions": [
+      {
+        "name": "FuenteDatos",
+        "kind": "m",
+        "expression": "\"Local\" meta [IsParameterQuery=true, List={\"Local\", \"Athena\"}, DefaultValue=\"Local\", Type=\"Text\", IsParameterQueryRequired=true]",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Text"
+          }
+        ]
+      },
+      {
+        "name": "RutaGold",
+        "kind": "m",
+        "expression": "\"C:\\Semestre 2026-2\\proyecto_ointegrador\\accidentes_project_for_data_science\\data\\gold\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Text"
+          }
+        ]
+      },
+      {
+        "name": "DsnAthena",
+        "kind": "m",
+        "expression": "\"accidentes-envigado\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Text"
+          }
+        ]
+      },
+      {
+        "name": "LeerGold",
+        "kind": "m",
+        "expression": [
+          "// Reads every parquet file under a folder of data/gold. Partition folders",
+          "// like anio=2015 become the anio column, as Athena does.",
+          "(carpeta as text) as table =>",
+          "let",
+          "    Archivos = Folder.Files(RutaGold & \"\\\" & carpeta),",
+          "    Parquet = Table.SelectRows(Archivos, each Text.Lower([Extension]) = \".parquet\"),",
+          "    ConTablas = Table.AddColumn(Parquet, \"tabla\", each",
+          "        let",
+          "            Particion = Text.BetweenDelimiters([Folder Path], \"anio=\", \"\\\"),",
+          "            Contenido = Parquet.Document([Content])",
+          "        in",
+          "            if Particion <> \"\" and not List.Contains(Table.ColumnNames(Contenido), \"anio\")",
+          "            then Table.AddColumn(Contenido, \"anio\", each Particion)",
+          "            else Contenido),",
+          "    Combinado = Table.Combine(ConTablas[tabla])",
+          "in",
+          "    Combinado"
+        ],
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Function"
+          }
+        ]
+      }
+    ],
+    "annotations": [
+      {
+        "name": "__PBI_TimeIntelligenceEnabled",
+        "value": "0"
+      }
+    ]
+  }
+}

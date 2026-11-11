@@ -4,8 +4,6 @@ Stores the data exactly as it comes from the source. Only the año
 column is added to partition the storage.
 """
 
-import pandas as pd
-
 from src import config
 
 
@@ -17,11 +15,11 @@ def extract_year(date_text):
 
 
 def main():
-    df = pd.read_csv(config.RAW_CSV, dtype=str)
+    df = config.read_csv(config.RAW_CSV, dtype=str)
     df["año"] = df["FECHA"].map(extract_year)
 
     config.prepare(config.BRONZE)
-    df.to_parquet(config.BRONZE, index=False, partition_cols=["año"])
+    config.write_parquet(df, config.BRONZE, partition_cols=["año"])
     print(f"bronze: {len(df)} rows written to {config.BRONZE}")
 
 
