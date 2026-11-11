@@ -4,3 +4,11 @@ __pycache__/
 .venv/
 venv/
 .ipynb_checkpoints/
+seccond-brains/
+# AWS deployment
+build/
+infra/.env
+infra/.serverless/
+# Power BI local files (cache and per-user settings)
+powerbi/**/.pbi/localSettings.json
+powerbi/**/.pbi/cache.abf

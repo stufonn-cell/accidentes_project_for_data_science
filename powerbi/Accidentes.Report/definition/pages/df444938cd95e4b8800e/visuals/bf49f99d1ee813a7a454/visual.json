@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "bf49f99d1ee813a7a454",
+  "position": {
+    "x": 336,
+    "y": 92,
+    "z": 2000,
+    "height": 110,
+    "width": 296,
+    "tabOrder": 2000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "metricas"
+                    }
+                  },
+                  "Property": "ROC AUC mejor modelo"
+                }
+              },
+              "queryRef": "metricas.ROC AUC mejor modelo",
+              "nativeQueryRef": "ROC AUC mejor modelo"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

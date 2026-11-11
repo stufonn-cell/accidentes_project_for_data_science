@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "797eac4a0c9c54654efd",
+  "position": {
+    "x": 648,
+    "y": 92,
+    "z": 7000,
+    "height": 110,
+    "width": 296,
+    "tabOrder": 7000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "siniestros"
+                    }
+                  },
+                  "Property": "% con víctimas"
+                }
+              },
+              "queryRef": "siniestros.% con víctimas",
+              "nativeQueryRef": "% con víctimas"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

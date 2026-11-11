@@ -1,0 +1,110 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "a1876e7ab94b33342f4c",
+  "position": {
+    "x": 640,
+    "y": 92,
+    "z": 6000,
+    "height": 250,
+    "width": 616,
+    "tabOrder": 6000
+  },
+  "visual": {
+    "visualType": "clusteredBarChart",
+    "query": {
+      "queryState": {
+        "Category": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "siniestros"
+                    }
+                  },
+                  "Property": "clase_accidente"
+                }
+              },
+              "queryRef": "siniestros.clase_accidente",
+              "nativeQueryRef": "clase_accidente"
+            }
+          ]
+        },
+        "Y": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "siniestros"
+                    }
+                  },
+                  "Property": "Total siniestros"
+                }
+              },
+              "queryRef": "siniestros.Total siniestros",
+              "nativeQueryRef": "Total siniestros"
+            },
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "siniestros"
+                    }
+                  },
+                  "Property": "Con víctimas"
+                }
+              },
+              "queryRef": "siniestros.Con víctimas",
+              "nativeQueryRef": "Con víctimas"
+            }
+          ]
+        }
+      },
+      "sortDefinition": {
+        "sort": [
+          {
+            "field": {
+              "Measure": {
+                "Expression": {
+                  "SourceRef": {
+                    "Entity": "siniestros"
+                  }
+                },
+                "Property": "Total siniestros"
+              }
+            },
+            "direction": "Descending"
+          }
+        ],
+        "isDefaultSort": false
+      }
+    },
+    "visualContainerObjects": {
+      "title": [
+        {
+          "properties": {
+            "show": {
+              "expr": {
+                "Literal": {
+                  "Value": "true"
+                }
+              }
+            },
+            "text": {
+              "expr": {
+                "Literal": {
+                  "Value": "'Clase de accidente'"
+                }
+              }
+            }
+          }
+        }
+      ]
+    },
+    "drillFilterOtherVisuals": true
+  }
+}

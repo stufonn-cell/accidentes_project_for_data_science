@@ -1,0 +1,38 @@
+{
+  "$schema": "https://developer.microsoft.com/json-schemas/fabric/item/report/definition/visualContainer/2.14.0/schema.json",
+  "name": "9a530546cbd822e5c637",
+  "position": {
+    "x": 24,
+    "y": 92,
+    "z": 1000,
+    "height": 110,
+    "width": 296,
+    "tabOrder": 1000
+  },
+  "visual": {
+    "visualType": "card",
+    "query": {
+      "queryState": {
+        "Values": {
+          "projections": [
+            {
+              "field": {
+                "Measure": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "metricas"
+                    }
+                  },
+                  "Property": "Mejor modelo"
+                }
+              },
+              "queryRef": "metricas.Mejor modelo",
+              "nativeQueryRef": "Mejor modelo"
+            }
+          ]
+        }
+      }
+    },
+    "drillFilterOtherVisuals": true
+  }
+}
