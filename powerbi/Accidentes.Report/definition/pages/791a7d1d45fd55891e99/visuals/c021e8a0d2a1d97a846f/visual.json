@@ -27,7 +27,8 @@
                 }
               },
               "queryRef": "Calendario.Inicio de mes",
-              "nativeQueryRef": "Inicio de mes"
+              "nativeQueryRef": "Inicio de mes",
+              "active": true
             }
           ]
         },

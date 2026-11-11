@@ -27,7 +27,8 @@
                 }
               },
               "queryRef": "siniestros.hora",
-              "nativeQueryRef": "hora"
+              "nativeQueryRef": "hora",
+              "active": true
             }
           ]
         },

@@ -13,24 +13,6 @@
     "visualType": "pivotTable",
     "query": {
       "queryState": {
-        "Rows": {
-          "projections": [
-            {
-              "field": {
-                "Column": {
-                  "Expression": {
-                    "SourceRef": {
-                      "Entity": "siniestros"
-                    }
-                  },
-                  "Property": "dia_semana"
-                }
-              },
-              "queryRef": "siniestros.dia_semana",
-              "nativeQueryRef": "dia_semana"
-            }
-          ]
-        },
         "Columns": {
           "projections": [
             {
@@ -45,7 +27,27 @@
                 }
               },
               "queryRef": "siniestros.hora",
-              "nativeQueryRef": "hora"
+              "nativeQueryRef": "hora",
+              "active": true
+            }
+          ]
+        },
+        "Rows": {
+          "projections": [
+            {
+              "field": {
+                "Column": {
+                  "Expression": {
+                    "SourceRef": {
+                      "Entity": "siniestros"
+                    }
+                  },
+                  "Property": "dia_semana"
+                }
+              },
+              "queryRef": "siniestros.dia_semana",
+              "nativeQueryRef": "dia_semana",
+              "active": true
             }
           ]
         },

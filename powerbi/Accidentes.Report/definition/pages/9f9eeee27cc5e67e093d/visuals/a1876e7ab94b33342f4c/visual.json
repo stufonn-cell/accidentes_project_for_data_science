@@ -27,7 +27,8 @@
                 }
               },
               "queryRef": "siniestros.clase_accidente",
-              "nativeQueryRef": "clase_accidente"
+              "nativeQueryRef": "clase_accidente",
+              "active": true
             }
           ]
         },
@@ -79,8 +80,7 @@
             },
             "direction": "Descending"
           }
-        ],
-        "isDefaultSort": false
+        ]
       }
     },
     "visualContainerObjects": {

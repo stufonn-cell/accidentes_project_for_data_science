@@ -27,7 +27,8 @@
                 }
               },
               "queryRef": "predicciones.barrio",
-              "nativeQueryRef": "barrio"
+              "nativeQueryRef": "barrio",
+              "active": true
             }
           ]
         },
@@ -79,8 +80,7 @@
             },
             "direction": "Descending"
           }
-        ],
-        "isDefaultSort": false
+        ]
       }
     },
     "visualContainerObjects": {
@@ -127,7 +127,6 @@
           "From": [
             {
               "Name": "subquery",
-              "Type": 2,
               "Expression": {
                 "Subquery": {
                   "Query": {
@@ -170,7 +169,8 @@
                     "Top": 15
                   }
                 }
-              }
+              },
+              "Type": 2
             },
             {
               "Name": "p",

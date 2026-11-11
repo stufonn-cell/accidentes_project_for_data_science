@@ -27,7 +27,8 @@
                 }
               },
               "queryRef": "siniestros.franja",
-              "nativeQueryRef": "franja"
+              "nativeQueryRef": "franja",
+              "active": true
             }
           ]
         },

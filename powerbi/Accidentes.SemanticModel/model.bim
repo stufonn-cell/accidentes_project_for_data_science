@@ -1,12 +1,106 @@
 {
-  "compatibilityLevel": 1567,
+  "compatibilityLevel": 1606,
   "model": {
+    "annotations": [
+      {
+        "name": "__PBI_TimeIntelligenceEnabled",
+        "value": "0"
+      },
+      {
+        "name": "PBI_ProTooling",
+        "value": "[\"DevMode\"]"
+      }
+    ],
     "culture": "es-CO",
     "dataAccessOptions": {
       "legacyRedirects": true,
       "returnErrorValuesAsNull": true
     },
     "defaultPowerBIDataSourceVersion": "powerBI_V3",
+    "expressions": [
+      {
+        "name": "FuenteDatos",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Text"
+          }
+        ],
+        "expression": "\"Local\" meta [IsParameterQuery=true, List={\"Local\", \"Athena\"}, DefaultValue=\"Local\", Type=\"Text\", IsParameterQueryRequired=true]",
+        "kind": "m",
+        "lineageTag": "4d786c47-9d03-44ad-8402-a446fd6c6f0c"
+      },
+      {
+        "name": "RutaGold",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Text"
+          }
+        ],
+        "expression": "\"C:\\Semestre 2026-2\\proyecto_ointegrador\\accidentes_project_for_data_science\\data\\gold\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]",
+        "kind": "m",
+        "lineageTag": "64a2ae9d-0b81-4878-abbc-542c9b2edd15"
+      },
+      {
+        "name": "DsnAthena",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Text"
+          }
+        ],
+        "expression": "\"accidentes-envigado\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]",
+        "kind": "m",
+        "lineageTag": "683334a9-492f-4494-b17c-02c06a020636"
+      },
+      {
+        "name": "LeerGold",
+        "annotations": [
+          {
+            "name": "PBI_ResultType",
+            "value": "Function"
+          }
+        ],
+        "expression": [
+          "// Reads every parquet file under a folder of data/gold. Partition folders",
+          "// like anio=2015 become the anio column, as Athena does.",
+          "(carpeta as text) as table =>",
+          "let",
+          "    Archivos = Folder.Files(RutaGold & \"\\\" & carpeta),",
+          "    Parquet = Table.SelectRows(Archivos, each Text.Lower([Extension]) = \".parquet\"),",
+          "    ConTablas = Table.AddColumn(Parquet, \"tabla\", each",
+          "        let",
+          "            Particion = Text.BetweenDelimiters([Folder Path], \"anio=\", \"\\\"),",
+          "            Contenido = Parquet.Document([Content])",
+          "        in",
+          "            if Particion <> \"\" and not List.Contains(Table.ColumnNames(Contenido), \"anio\")",
+          "            then Table.AddColumn(Contenido, \"anio\", each Particion)",
+          "            else Contenido),",
+          "    Combinado = Table.Combine(ConTablas[tabla])",
+          "in",
+          "    Combinado"
+        ],
+        "kind": "m",
+        "lineageTag": "2981078b-e5fa-45df-ba9f-f5c6279c93f4"
+      }
+    ],
+    "relationships": [
+      {
+        "name": "siniestros_calendario",
+        "fromColumn": "fecha",
+        "fromTable": "siniestros",
+        "toColumn": "Fecha",
+        "toTable": "Calendario"
+      },
+      {
+        "name": "predicciones_siniestros",
+        "fromColumn": "radicado",
+        "fromTable": "predicciones",
+        "toColumn": "radicado",
+        "toTable": "siniestros"
+      }
+    ],
     "sourceQueryCulture": "es-CO",
     "tables": [
       {
@@ -15,130 +109,201 @@
           {
             "name": "radicado",
             "dataType": "string",
+            "lineageTag": "a1ab22ec-a279-47f8-a7ce-a44b0a911ec2",
             "sourceColumn": "radicado",
             "summarizeBy": "none"
           },
           {
             "name": "fecha_hora",
             "dataType": "dateTime",
+            "lineageTag": "8a3fda60-4858-4982-b417-a2ce3a643471",
             "sourceColumn": "fecha_hora",
             "summarizeBy": "none"
           },
           {
             "name": "fecha",
             "dataType": "dateTime",
+            "lineageTag": "3a21468a-bda7-443a-a42c-7b40b9e47902",
             "sourceColumn": "fecha",
             "summarizeBy": "none"
           },
           {
             "name": "anio",
             "dataType": "int64",
+            "lineageTag": "2eac2cf0-0b0a-428a-aa87-122c8dfb0421",
             "sourceColumn": "anio",
             "summarizeBy": "none"
           },
           {
             "name": "mes",
             "dataType": "int64",
+            "lineageTag": "65630355-b293-4391-822b-7ff0c228abf5",
             "sourceColumn": "mes",
             "summarizeBy": "none"
           },
           {
             "name": "dia_semana",
             "dataType": "string",
+            "lineageTag": "f1c6316e-79f6-47b9-9bdf-371da6bf9df1",
+            "sortByColumn": "dia_num",
             "sourceColumn": "dia_semana",
-            "summarizeBy": "none",
-            "sortByColumn": "dia_num"
+            "summarizeBy": "none"
           },
           {
             "name": "dia_num",
             "dataType": "int64",
+            "isHidden": true,
+            "lineageTag": "b2e7bcc6-3bf5-4c66-97a3-ee1ac5acf9f6",
             "sourceColumn": "dia_num",
-            "summarizeBy": "none",
-            "isHidden": true
+            "summarizeBy": "none"
           },
           {
             "name": "hora",
             "dataType": "int64",
+            "lineageTag": "b0d7fde6-0d46-4520-afec-a3fdd6fb0cf7",
             "sourceColumn": "hora",
             "summarizeBy": "none"
           },
           {
             "name": "franja",
             "dataType": "string",
+            "lineageTag": "263a9b38-bc4f-46fa-9b83-11415a98a165",
+            "sortByColumn": "franja_orden",
             "sourceColumn": "franja",
-            "summarizeBy": "none",
-            "sortByColumn": "franja_orden"
+            "summarizeBy": "none"
           },
           {
             "name": "franja_orden",
             "dataType": "int64",
+            "isHidden": true,
+            "lineageTag": "bbda8c23-402f-4f3e-89ea-4ae1fe02ddcf",
             "sourceColumn": "franja_orden",
-            "summarizeBy": "none",
-            "isHidden": true
+            "summarizeBy": "none"
           },
           {
             "name": "clase_accidente",
             "dataType": "string",
+            "lineageTag": "f2560f10-4577-4b7e-a502-700f71488b48",
             "sourceColumn": "clase_accidente",
             "summarizeBy": "none"
           },
           {
             "name": "causa",
             "dataType": "string",
+            "lineageTag": "733b95be-0cf1-42e5-91d5-709f9223332d",
             "sourceColumn": "causa",
             "summarizeBy": "none"
           },
           {
             "name": "barrio",
             "dataType": "string",
+            "lineageTag": "8d1a41e7-d32b-4fbe-943d-9147dfa17acf",
             "sourceColumn": "barrio",
             "summarizeBy": "none"
           },
           {
             "name": "area",
             "dataType": "string",
+            "lineageTag": "cf13968e-33e9-4412-be37-a2da980736a1",
             "sourceColumn": "area",
             "summarizeBy": "none"
           },
           {
             "name": "registros",
             "dataType": "int64",
+            "lineageTag": "2d203411-36f8-41d6-a6d5-01c349537d5c",
             "sourceColumn": "registros",
             "summarizeBy": "none"
           },
           {
             "name": "lon",
+            "dataCategory": "Longitude",
             "dataType": "double",
+            "lineageTag": "577b77f0-afd5-4498-bace-3f091667f708",
             "sourceColumn": "lon",
-            "summarizeBy": "none",
-            "dataCategory": "Longitude"
+            "summarizeBy": "none"
           },
           {
             "name": "lat",
+            "dataCategory": "Latitude",
             "dataType": "double",
+            "lineageTag": "cbf0f2c5-5fb3-4cc0-9018-033a737703c2",
             "sourceColumn": "lat",
-            "summarizeBy": "none",
-            "dataCategory": "Latitude"
+            "summarizeBy": "none"
           },
           {
             "name": "gravedad",
             "dataType": "string",
+            "lineageTag": "1baa161d-c5b8-4a05-91f1-58df0439a3e8",
+            "sortByColumn": "gravedad_orden",
             "sourceColumn": "gravedad",
-            "summarizeBy": "none",
-            "sortByColumn": "gravedad_orden"
+            "summarizeBy": "none"
           },
           {
             "name": "gravedad_orden",
             "dataType": "int64",
+            "isHidden": true,
+            "lineageTag": "69437d33-de68-46d5-b933-bcfd73148a56",
             "sourceColumn": "gravedad_orden",
-            "summarizeBy": "none",
-            "isHidden": true
+            "summarizeBy": "none"
           },
           {
             "name": "con_victimas",
             "dataType": "int64",
+            "lineageTag": "bed89d18-f9bc-49c1-8581-768ee754ecf9",
             "sourceColumn": "con_victimas",
             "summarizeBy": "none"
+          }
+        ],
+        "lineageTag": "9f71c1c4-a55c-41d5-a63a-804b58db0085",
+        "measures": [
+          {
+            "name": "Total siniestros",
+            "expression": "COUNTROWS(siniestros)",
+            "formatString": "#,0",
+            "lineageTag": "e3982525-0198-4f09-91ff-6c3c9ce95289"
+          },
+          {
+            "name": "Con víctimas",
+            "expression": "SUM(siniestros[con_victimas])",
+            "formatString": "#,0",
+            "lineageTag": "954b5653-ed8f-4516-a6ab-e005e87746b2"
+          },
+          {
+            "name": "% con víctimas",
+            "expression": "DIVIDE([Con víctimas], [Total siniestros])",
+            "formatString": "0.0%",
+            "lineageTag": "0c6739c0-ef08-4126-8acd-78edc108016b"
+          },
+          {
+            "name": "Con muertos",
+            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Muertos\"))",
+            "formatString": "#,0",
+            "lineageTag": "dcca5ced-2a59-42f1-b1dd-d73686f2c6c1"
+          },
+          {
+            "name": "Con heridos",
+            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Heridos\"))",
+            "formatString": "#,0",
+            "lineageTag": "916f10fa-99d5-4e41-a5fe-ba2af75dbc3e"
+          },
+          {
+            "name": "Solo daños",
+            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Solo daños\"))",
+            "formatString": "#,0",
+            "lineageTag": "24c73759-2de3-46d0-bb8d-2495c218f56e"
+          },
+          {
+            "name": "Siniestros año anterior",
+            "expression": "CALCULATE([Total siniestros], SAMEPERIODLASTYEAR(Calendario[Fecha]))",
+            "formatString": "#,0",
+            "lineageTag": "2d24b98b-eee5-4f7f-b3eb-825a3a96ba8c"
+          },
+          {
+            "name": "Variación anual",
+            "expression": "DIVIDE([Total siniestros] - [Siniestros año anterior], [Siniestros año anterior])",
+            "formatString": "0.0%",
+            "lineageTag": "245f8468-3de8-4a54-83a4-4403c86905bb"
           }
         ],
         "partitions": [
@@ -146,7 +311,6 @@
             "name": "siniestros",
             "mode": "import",
             "source": {
-              "type": "m",
               "expression": [
                 "let",
                 "    Datos = if FuenteDatos = \"Athena\"",
@@ -172,50 +336,9 @@
                 "    })",
                 "in",
                 "    Etiquetas"
-              ]
+              ],
+              "type": "m"
             }
-          }
-        ],
-        "measures": [
-          {
-            "name": "Total siniestros",
-            "expression": "COUNTROWS(siniestros)",
-            "formatString": "#,0"
-          },
-          {
-            "name": "Con víctimas",
-            "expression": "SUM(siniestros[con_victimas])",
-            "formatString": "#,0"
-          },
-          {
-            "name": "% con víctimas",
-            "expression": "DIVIDE([Con víctimas], [Total siniestros])",
-            "formatString": "0.0%"
-          },
-          {
-            "name": "Con muertos",
-            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Muertos\"))",
-            "formatString": "#,0"
-          },
-          {
-            "name": "Con heridos",
-            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Heridos\"))",
-            "formatString": "#,0"
-          },
-          {
-            "name": "Solo daños",
-            "expression": "CALCULATE([Total siniestros], KEEPFILTERS(siniestros[gravedad] = \"Solo daños\"))",
-            "formatString": "#,0"
-          },
-          {
-            "name": "Siniestros año anterior",
-            "expression": "CALCULATE([Total siniestros], SAMEPERIODLASTYEAR(Calendario[Fecha]))",
-            "formatString": "#,0"
-          },
-          {
-            "name": "Variación anual",
-            "expression": "DIVIDE([Total siniestros] - [Siniestros año anterior], [Siniestros año anterior])",
-            "formatString": "0.0%"
           }
         ]
       },
@@ -225,40 +348,67 @@
           {
             "name": "radicado",
             "dataType": "string",
+            "isHidden": true,
+            "lineageTag": "1dcb33a8-4f44-42ab-9ae8-e839d67f6bbb",
             "sourceColumn": "radicado",
-            "summarizeBy": "none",
-            "isHidden": true
+            "summarizeBy": "none"
           },
           {
             "name": "fecha",
             "dataType": "dateTime",
+            "lineageTag": "623658bd-8f61-4b24-97f2-bdfbbd7e4f09",
             "sourceColumn": "fecha",
             "summarizeBy": "none"
           },
           {
             "name": "anio",
             "dataType": "int64",
+            "lineageTag": "0990bd30-2aae-4c25-956e-cd6225835794",
             "sourceColumn": "anio",
             "summarizeBy": "none"
           },
           {
             "name": "barrio",
             "dataType": "string",
+            "lineageTag": "887ad7d9-a76c-4eb1-a374-e43b9404ea7b",
             "sourceColumn": "barrio",
             "summarizeBy": "none"
           },
           {
             "name": "con_victimas",
             "dataType": "int64",
+            "lineageTag": "c5a04730-1227-41fd-a1f2-fa0a94fb0f1b",
             "sourceColumn": "con_victimas",
             "summarizeBy": "none"
           },
           {
             "name": "probabilidad",
             "dataType": "double",
+            "formatString": "0.0%",
+            "lineageTag": "50febd71-39a3-46f0-981e-70f8670015ac",
             "sourceColumn": "probabilidad",
-            "summarizeBy": "none",
-            "formatString": "0.0%"
+            "summarizeBy": "none"
+          }
+        ],
+        "lineageTag": "345c724f-34dd-4304-90cb-9daef3842e8d",
+        "measures": [
+          {
+            "name": "Siniestros evaluados",
+            "expression": "COUNTROWS(predicciones)",
+            "formatString": "#,0",
+            "lineageTag": "39602968-3eef-4f81-8e82-babce447e8b2"
+          },
+          {
+            "name": "Probabilidad media",
+            "expression": "AVERAGE(predicciones[probabilidad])",
+            "formatString": "0.0%",
+            "lineageTag": "716d83d7-77de-47ed-b3cf-55826dc44dcf"
+          },
+          {
+            "name": "Tasa real de víctimas",
+            "expression": "AVERAGE(predicciones[con_victimas])",
+            "formatString": "0.0%",
+            "lineageTag": "99f3ca82-9ce6-45a0-9368-d6d0d463417e"
           }
         ],
         "partitions": [
@@ -266,7 +416,6 @@
             "name": "predicciones",
             "mode": "import",
             "source": {
-              "type": "m",
               "expression": [
                 "let",
                 "    Datos = if FuenteDatos = \"Athena\"",
@@ -276,25 +425,9 @@
                 "    Tipos = Table.TransformColumnTypes(Columnas, {{\"radicado\", type text}, {\"fecha\", type date}, {\"anio\", Int64.Type}, {\"barrio\", type text}, {\"con_victimas\", Int64.Type}, {\"probabilidad\", type number}})",
                 "in",
                 "    Tipos"
-              ]
+              ],
+              "type": "m"
             }
-          }
-        ],
-        "measures": [
-          {
-            "name": "Siniestros evaluados",
-            "expression": "COUNTROWS(predicciones)",
-            "formatString": "#,0"
-          },
-          {
-            "name": "Probabilidad media",
-            "expression": "AVERAGE(predicciones[probabilidad])",
-            "formatString": "0.0%"
-          },
-          {
-            "name": "Tasa real de víctimas",
-            "expression": "AVERAGE(predicciones[con_victimas])",
-            "formatString": "0.0%"
           }
         ]
       },
@@ -304,98 +437,138 @@
           {
             "name": "modelo",
             "dataType": "string",
+            "lineageTag": "f14b0368-0062-4323-9f8a-2a875869e9ad",
             "sourceColumn": "modelo",
             "summarizeBy": "none"
           },
           {
             "name": "es_mejor",
             "dataType": "int64",
+            "lineageTag": "d8dacd35-1a15-420f-a472-857df3e8414d",
             "sourceColumn": "es_mejor",
             "summarizeBy": "none"
           },
           {
             "name": "roc_auc",
             "dataType": "double",
+            "formatString": "0.000",
+            "lineageTag": "2264ddb1-5c93-47fe-886b-2629f47cdc1c",
             "sourceColumn": "roc_auc",
-            "summarizeBy": "none",
-            "formatString": "0.000"
+            "summarizeBy": "none"
           },
           {
             "name": "average_precision",
             "dataType": "double",
+            "formatString": "0.000",
+            "lineageTag": "884ca7f2-d5c8-41b9-ae1b-bf6343cfd001",
             "sourceColumn": "average_precision",
-            "summarizeBy": "none",
-            "formatString": "0.000"
+            "summarizeBy": "none"
           },
           {
             "name": "brier",
             "dataType": "double",
+            "formatString": "0.000",
+            "lineageTag": "5eea8fef-3807-49b4-baa7-5f36499e8307",
             "sourceColumn": "brier",
-            "summarizeBy": "none",
-            "formatString": "0.000"
+            "summarizeBy": "none"
           },
           {
             "name": "precision",
             "dataType": "double",
+            "formatString": "0.0%",
+            "lineageTag": "3fad707f-73be-4653-a0fb-8cb6e1884749",
             "sourceColumn": "precision",
-            "summarizeBy": "none",
-            "formatString": "0.0%"
+            "summarizeBy": "none"
           },
           {
             "name": "recall",
             "dataType": "double",
+            "formatString": "0.0%",
+            "lineageTag": "3148199a-c1dc-46c5-a799-1348e5345a84",
             "sourceColumn": "recall",
-            "summarizeBy": "none",
-            "formatString": "0.0%"
+            "summarizeBy": "none"
           },
           {
             "name": "verdaderos_negativos",
             "dataType": "int64",
+            "formatString": "#,0",
+            "lineageTag": "89aa16d8-0646-42e3-ab04-4e03693978c3",
             "sourceColumn": "verdaderos_negativos",
-            "summarizeBy": "none",
-            "formatString": "#,0"
+            "summarizeBy": "none"
           },
           {
             "name": "falsos_positivos",
             "dataType": "int64",
+            "formatString": "#,0",
+            "lineageTag": "2366f00b-b914-4291-aa42-3b8f9dcfe59f",
             "sourceColumn": "falsos_positivos",
-            "summarizeBy": "none",
-            "formatString": "#,0"
+            "summarizeBy": "none"
           },
           {
             "name": "falsos_negativos",
             "dataType": "int64",
+            "formatString": "#,0",
+            "lineageTag": "7a84b3db-5b02-45e1-98e9-c23e362bc888",
             "sourceColumn": "falsos_negativos",
-            "summarizeBy": "none",
-            "formatString": "#,0"
+            "summarizeBy": "none"
           },
           {
             "name": "verdaderos_positivos",
             "dataType": "int64",
+            "formatString": "#,0",
+            "lineageTag": "ff527160-1133-4b6a-b4c0-9a86cb95934b",
             "sourceColumn": "verdaderos_positivos",
-            "summarizeBy": "none",
-            "formatString": "#,0"
+            "summarizeBy": "none"
           },
           {
             "name": "filas_entrenamiento",
             "dataType": "int64",
+            "formatString": "#,0",
+            "lineageTag": "4a1468f6-4072-4c8b-9b07-eabf72d126b5",
             "sourceColumn": "filas_entrenamiento",
-            "summarizeBy": "none",
-            "formatString": "#,0"
+            "summarizeBy": "none"
           },
           {
             "name": "filas_prueba",
             "dataType": "int64",
+            "formatString": "#,0",
+            "lineageTag": "c2f4d278-994c-4930-a78c-fcd074a2408c",
             "sourceColumn": "filas_prueba",
-            "summarizeBy": "none",
-            "formatString": "#,0"
+            "summarizeBy": "none"
           },
           {
             "name": "prevalencia_prueba",
             "dataType": "double",
+            "formatString": "0.0%",
+            "lineageTag": "1e18ad1d-6020-4719-9b58-9c303200cb44",
             "sourceColumn": "prevalencia_prueba",
-            "summarizeBy": "none",
-            "formatString": "0.0%"
+            "summarizeBy": "none"
+          }
+        ],
+        "lineageTag": "4ac9f8c5-156e-4f2a-ae05-03303e33efcf",
+        "measures": [
+          {
+            "name": "Mejor modelo",
+            "expression": "CALCULATE(MAX(metricas[modelo]), metricas[es_mejor] = 1)",
+            "lineageTag": "b873a1de-ab22-4bf9-89a7-ccc8e00ea9d0"
+          },
+          {
+            "name": "ROC AUC mejor modelo",
+            "expression": "CALCULATE(MAX(metricas[roc_auc]), metricas[es_mejor] = 1)",
+            "formatString": "0.000",
+            "lineageTag": "c942ef04-a26b-49ab-bad2-8d17d09cd0d2"
+          },
+          {
+            "name": "Precisión mejor modelo",
+            "expression": "CALCULATE(MAX(metricas[precision]), metricas[es_mejor] = 1)",
+            "formatString": "0.0%",
+            "lineageTag": "ada80be4-45a9-4e4a-a301-f9dbd141785a"
+          },
+          {
+            "name": "Recall mejor modelo",
+            "expression": "CALCULATE(MAX(metricas[recall]), metricas[es_mejor] = 1)",
+            "formatString": "0.0%",
+            "lineageTag": "f9db1e3a-9c5f-4cdc-9ad2-258c300ada95"
           }
         ],
         "partitions": [
@@ -403,7 +576,6 @@
             "name": "metricas",
             "mode": "import",
             "source": {
-              "type": "m",
               "expression": [
                 "let",
                 "    Datos = if FuenteDatos = \"Athena\"",
@@ -415,29 +587,9 @@
                 "    Etiquetas = Table.TransformColumns(Tipos, {{\"modelo\", each Record.FieldOrDefault(Nombres, _, _), type text}})",
                 "in",
                 "    Etiquetas"
-              ]
+              ],
+              "type": "m"
             }
-          }
-        ],
-        "measures": [
-          {
-            "name": "Mejor modelo",
-            "expression": "CALCULATE(MAX(metricas[modelo]), metricas[es_mejor] = 1)"
-          },
-          {
-            "name": "ROC AUC mejor modelo",
-            "expression": "CALCULATE(MAX(metricas[roc_auc]), metricas[es_mejor] = 1)",
-            "formatString": "0.000"
-          },
-          {
-            "name": "Precisión mejor modelo",
-            "expression": "CALCULATE(MAX(metricas[precision]), metricas[es_mejor] = 1)",
-            "formatString": "0.0%"
-          },
-          {
-            "name": "Recall mejor modelo",
-            "expression": "CALCULATE(MAX(metricas[recall]), metricas[es_mejor] = 1)",
-            "formatString": "0.0%"
           }
         ]
       },
@@ -447,43 +599,58 @@
           {
             "name": "modelo",
             "dataType": "string",
+            "lineageTag": "67381df7-8b6e-450c-bf48-14b5dfe482ad",
             "sourceColumn": "modelo",
             "summarizeBy": "none"
           },
           {
             "name": "real",
             "dataType": "string",
+            "lineageTag": "c21054ec-1562-43f7-9e77-038ec930ae1f",
+            "sortByColumn": "orden_real",
             "sourceColumn": "real",
-            "summarizeBy": "none",
-            "sortByColumn": "orden_real"
+            "summarizeBy": "none"
           },
           {
             "name": "predicho",
             "dataType": "string",
+            "lineageTag": "c30d93bc-2510-4249-941b-6fbd89247f1c",
+            "sortByColumn": "orden_predicho",
             "sourceColumn": "predicho",
-            "summarizeBy": "none",
-            "sortByColumn": "orden_predicho"
+            "summarizeBy": "none"
           },
           {
             "name": "casos",
             "dataType": "int64",
+            "formatString": "#,0",
+            "lineageTag": "f1698936-40b2-4dfe-9a74-1d855f221159",
             "sourceColumn": "casos",
-            "summarizeBy": "none",
-            "formatString": "#,0"
+            "summarizeBy": "none"
           },
           {
             "name": "orden_real",
             "dataType": "int64",
+            "isHidden": true,
+            "lineageTag": "79cdcd84-3ccf-403a-977d-f30dd76e6edb",
             "sourceColumn": "orden_real",
-            "summarizeBy": "none",
-            "isHidden": true
+            "summarizeBy": "none"
           },
           {
             "name": "orden_predicho",
             "dataType": "int64",
+            "isHidden": true,
+            "lineageTag": "d9e61d9e-c4b5-4902-87b3-b3e53a77e0b3",
             "sourceColumn": "orden_predicho",
-            "summarizeBy": "none",
-            "isHidden": true
+            "summarizeBy": "none"
+          }
+        ],
+        "lineageTag": "c7c47679-90eb-40f3-a297-7dbcda35e484",
+        "measures": [
+          {
+            "name": "Total casos",
+            "expression": "SUM(matriz_confusion[casos])",
+            "formatString": "#,0",
+            "lineageTag": "0f5f58eb-0704-4a13-a272-388145226bbb"
           }
         ],
         "partitions": [
@@ -491,7 +658,6 @@
             "name": "matriz_confusion",
             "mode": "import",
             "source": {
-              "type": "m",
               "expression": [
                 "let",
                 "    // Confusion matrix of the selected model, one row per cell",
@@ -507,15 +673,9 @@
                 "                    orden_real = Int64.Type, orden_predicho = Int64.Type])",
                 "in",
                 "    Tabla"
-              ]
+              ],
+              "type": "m"
             }
-          }
-        ],
-        "measures": [
-          {
-            "name": "Total casos",
-            "expression": "SUM(matriz_confusion[casos])",
-            "formatString": "#,0"
           }
         ]
       },
@@ -525,43 +685,49 @@
           {
             "name": "Fecha",
             "dataType": "dateTime",
+            "isKey": true,
+            "lineageTag": "3f8a7967-d0a9-4abf-bd3c-600b5e8902e6",
             "sourceColumn": "Fecha",
-            "summarizeBy": "none",
-            "isKey": true
+            "summarizeBy": "none"
           },
           {
             "name": "Año",
             "dataType": "int64",
+            "lineageTag": "95bd4b3e-d05f-494f-849a-bedead3cbfe3",
             "sourceColumn": "Año",
             "summarizeBy": "none"
           },
           {
             "name": "Mes num",
             "dataType": "int64",
+            "isHidden": true,
+            "lineageTag": "36acf49b-551d-445d-8aeb-104260a259c3",
             "sourceColumn": "Mes num",
-            "summarizeBy": "none",
-            "isHidden": true
+            "summarizeBy": "none"
           },
           {
             "name": "Mes",
             "dataType": "string",
+            "lineageTag": "2feff788-99d9-4069-b7fd-64c3753e5b53",
+            "sortByColumn": "Mes num",
             "sourceColumn": "Mes",
-            "summarizeBy": "none",
-            "sortByColumn": "Mes num"
+            "summarizeBy": "none"
           },
           {
             "name": "Inicio de mes",
             "dataType": "dateTime",
+            "lineageTag": "8305a957-0e4b-405c-95c4-606d1350a500",
             "sourceColumn": "Inicio de mes",
             "summarizeBy": "none"
           }
         ],
+        "dataCategory": "Time",
+        "lineageTag": "09867fbc-0747-483a-a8e7-467100e9b9c7",
         "partitions": [
           {
             "name": "Calendario",
             "mode": "import",
             "source": {
-              "type": "m",
               "expression": [
                 "let",
                 "    Inicio = #date(2010, 1, 1),",
@@ -575,97 +741,11 @@
                 "    ConInicioMes = Table.AddColumn(ConMes, \"Inicio de mes\", each Date.StartOfMonth([Fecha]), type date)",
                 "in",
                 "    ConInicioMes"
-              ]
+              ],
+              "type": "m"
             }
           }
-        ],
-        "dataCategory": "Time"
-      }
-    ],
-    "relationships": [
-      {
-        "name": "siniestros_calendario",
-        "fromTable": "siniestros",
-        "fromColumn": "fecha",
-        "toTable": "Calendario",
-        "toColumn": "Fecha"
-      },
-      {
-        "name": "predicciones_siniestros",
-        "fromTable": "predicciones",
-        "fromColumn": "radicado",
-        "toTable": "siniestros",
-        "toColumn": "radicado"
-      }
-    ],
-    "expressions": [
-      {
-        "name": "FuenteDatos",
-        "kind": "m",
-        "expression": "\"Local\" meta [IsParameterQuery=true, List={\"Local\", \"Athena\"}, DefaultValue=\"Local\", Type=\"Text\", IsParameterQueryRequired=true]",
-        "annotations": [
-          {
-            "name": "PBI_ResultType",
-            "value": "Text"
-          }
         ]
-      },
-      {
-        "name": "RutaGold",
-        "kind": "m",
-        "expression": "\"C:\\Semestre 2026-2\\proyecto_ointegrador\\accidentes_project_for_data_science\\data\\gold\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]",
-        "annotations": [
-          {
-            "name": "PBI_ResultType",
-            "value": "Text"
-          }
-        ]
-      },
-      {
-        "name": "DsnAthena",
-        "kind": "m",
-        "expression": "\"accidentes-envigado\" meta [IsParameterQuery=true, Type=\"Text\", IsParameterQueryRequired=true]",
-        "annotations": [
-          {
-            "name": "PBI_ResultType",
-            "value": "Text"
-          }
-        ]
-      },
-      {
-        "name": "LeerGold",
-        "kind": "m",
-        "expression": [
-          "// Reads every parquet file under a folder of data/gold. Partition folders",
-          "// like anio=2015 become the anio column, as Athena does.",
-          "(carpeta as text) as table =>",
-          "let",
-          "    Archivos = Folder.Files(RutaGold & \"\\\" & carpeta),",
-          "    Parquet = Table.SelectRows(Archivos, each Text.Lower([Extension]) = \".parquet\"),",
-          "    ConTablas = Table.AddColumn(Parquet, \"tabla\", each",
-          "        let",
-          "            Particion = Text.BetweenDelimiters([Folder Path], \"anio=\", \"\\\"),",
-          "            Contenido = Parquet.Document([Content])",
-          "        in",
-          "            if Particion <> \"\" and not List.Contains(Table.ColumnNames(Contenido), \"anio\")",
-          "            then Table.AddColumn(Contenido, \"anio\", each Particion)",
-          "            else Contenido),",
-          "    Combinado = Table.Combine(ConTablas[tabla])",
-          "in",
-          "    Combinado"
-        ],
-        "annotations": [
-          {
-            "name": "PBI_ResultType",
-            "value": "Function"
-          }
-        ]
-      }
-    ],
-    "annotations": [
-      {
-        "name": "__PBI_TimeIntelligenceEnabled",
-        "value": "0"
       }
     ]
   }
