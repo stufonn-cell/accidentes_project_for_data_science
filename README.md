@@ -321,6 +321,28 @@ empiece a editar el tablero en Desktop, los cambios se hacen alla.
   `run.sh`, correr `powerbi.sh` y poner la llave nueva en el DSN. El informe
   de Power BI no cambia, porque las tablas se llaman igual.
 
+## Tablero web
+
+
+Ademas del informe de Power BI, [dashboard/](dashboard/) tiene un tablero web
+estatico (HTML, CSS y JavaScript sin dependencias) con filtros por años,
+gravedad, area, clase de accidente y barrio, un mapa de calor del Valle de
+Aburra y la seccion del modelo.
+
+La pagina lee `dashboard/data/datos.js`, que se genera desde la capa gold y ejecuta en servidor web local:
+
+```bash
+python scripts/exportar_dashboard.py
+python -m http.server 8000 --directory dashboard
+```
+
+El script lee gold con `src.config` (local, o S3 con `DATA_DIR=s3://...`),
+comprueba que la tabla `siniestros` cuadre con los agregados `por_mes`,
+`por_clase`, `por_gravedad_anio` y `por_barrio`, y falla si no cuadran. Hay
+que correrlo despues de `python -m src.pipeline` para que el tablero muestre
+los datos nuevos. Luego basta con abrir `dashboard/index.html` en el
+navegador; no necesita servidor.
+
 ## Fuente de los datos
 
 Accidentalidad Municipio de Envigado, datos abiertos de la Alcaldia de
