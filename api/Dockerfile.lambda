@@ -1,0 +1,13 @@
+# Image of the prediction API for AWS Lambda (container image).
+# Serverless Framework builds it and pushes it to ECR: see infra/api/serverless.yml.
+# To try it locally, from the root of the repository:
+#   docker build --platform linux/amd64 --provenance=false -f api/Dockerfile.lambda -t accidentes-api-lambda .
+FROM public.ecr.aws/lambda/python:3.13
+
+COPY requirements-api.txt .
+RUN pip install --no-cache-dir -r requirements-api.txt
+
+COPY src ${LAMBDA_TASK_ROOT}/src
+COPY api ${LAMBDA_TASK_ROOT}/api
+
+CMD ["api.lambda_handler.handler"]

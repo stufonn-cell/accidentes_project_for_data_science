@@ -1,0 +1,14 @@
+# What the prediction API needs to run (api/). The data and model libraries
+# have the same versions as requirements.txt: a model saved with one version
+# of scikit-learn must be loaded with that same version.
+fastapi==0.165.0
+starlette==1.10.0
+pydantic==2.13.4
+uvicorn==0.51.0
+mangum==0.22.0
+pandas==3.0.3
+numpy==2.4.4
+pyarrow==24.0.0
+scikit-learn==1.9.0
+scipy==1.18.0
+joblib==1.5.3

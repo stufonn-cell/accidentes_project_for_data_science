@@ -31,8 +31,13 @@ BUCKET="$(stack_output BucketName)"
 log "Uploading the job code to s3://$BUCKET/scripts/"
 aws s3 cp "$(native_path "$ROOT_DIR/glue_jobs/run_stage.py")" "s3://$BUCKET/scripts/run_stage.py"
 aws s3 cp "$(native_path "$ROOT_DIR/build/src.zip")" "s3://$BUCKET/scripts/src.zip"
+aws s3 cp "$(native_path "$ROOT_DIR/src/ingesta.py")" "s3://$BUCKET/scripts/ingesta.py"
 
-log "Uploading the raw CSV to s3://$BUCKET/raw/"
-aws s3 cp "$(native_path "$ROOT_DIR/data/raw/accidentalidad_envigado.csv")" "s3://$BUCKET/raw/accidentalidad_envigado.csv"
+# The ingestion job downloads the data from datos.gov.co. This copy is only
+# its backup, used when the portal does not answer.
+log "Uploading the backup copy of the raw CSV to s3://$BUCKET/raw/respaldo/"
+CSV="$ROOT_DIR/data/raw/vehiculos_siniestros_runt.csv"
+[[ -f "$CSV" ]] || fail "Missing $CSV: run python -m src.ingesta first"
+aws s3 cp "$(native_path "$CSV")" "s3://$BUCKET/raw/respaldo/vehiculos_siniestros_runt.csv"
 
 log "Deployed. Run the pipeline with: infra/scripts/run.sh"

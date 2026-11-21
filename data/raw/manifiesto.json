@@ -1,0 +1,83 @@
+{
+  "fuente": "Vehiculos involucrados en un accidente de transito Ley 2251-2022, Ministerio de Transporte - RUNT, datos.gov.co",
+  "licencia": "CC BY-SA 4.0",
+  "dataset_id": "6jmc-vaxk",
+  "url": "https://www.datos.gov.co/resource/6jmc-vaxk.csv",
+  "ejecutado_en": "2026-11-20T21:05:49+00:00",
+  "fecha_descarga": "2026-11-20",
+  "origen": "archivo_local",
+  "archivo_local": "runt_local.csv",
+  "filas": 450335,
+  "columnas": [
+    "MARCA_VEHICULO",
+    "MODELO_VEHICULO",
+    "TIPO_VEHICULO",
+    "EDAD_VEHICULO",
+    "FECHA_ACCIDENTE",
+    "GRAVEDAD_ACCIDENTE",
+    "DEPARTAMENTO_ACCIDENTE",
+    "MUNICIPIO_ACCIDENTE",
+    "AUTORIDAD_DE_TRANSITO"
+  ],
+  "vacios": {
+    "MARCA_VEHICULO": 0,
+    "MODELO_VEHICULO": 0,
+    "TIPO_VEHICULO": 0,
+    "EDAD_VEHICULO": 20,
+    "FECHA_ACCIDENTE": 0,
+    "GRAVEDAD_ACCIDENTE": 0,
+    "DEPARTAMENTO_ACCIDENTE": 0,
+    "MUNICIPIO_ACCIDENTE": 0,
+    "AUTORIDAD_DE_TRANSITO": 0
+  },
+  "meses": 57,
+  "mes_minimo": "2022-01",
+  "mes_maximo": "2026-09",
+  "bytes": 50747126,
+  "sha256": "deb82db1f8b17348c2e264f2d804237734270feb34a7411a15740da4a6395222",
+  "validaciones": [
+    {
+      "nombre": "columnas",
+      "ok": true,
+      "detalle": "las 9 columnas esperadas estan"
+    },
+    {
+      "nombre": "filas_minimas",
+      "ok": true,
+      "detalle": "450335 filas, minimo 100000"
+    },
+    {
+      "nombre": "filas_bien_formadas",
+      "ok": true,
+      "detalle": "0 filas con un numero de columnas distinto a 9"
+    },
+    {
+      "nombre": "vacios_razonables",
+      "ok": true,
+      "detalle": "vacios por columna {'MARCA_VEHICULO': 0, 'MODELO_VEHICULO': 0, 'TIPO_VEHICULO': 0, 'EDAD_VEHICULO': 20, 'FECHA_ACCIDENTE': 0, 'GRAVEDAD_ACCIDENTE': 0, 'DEPARTAMENTO_ACCIDENTE': 0, 'MUNICIPIO_ACCIDENTE': 0, 'AUTORIDAD_DE_TRANSITO': 0}, tolerancia 4503 filas"
+    },
+    {
+      "nombre": "fecha_mm_aaaa",
+      "ok": true,
+      "detalle": "0 fechas que no siguen el formato MM/AAAA"
+    },
+    {
+      "nombre": "fecha_en_rango",
+      "ok": true,
+      "detalle": "0 fechas antes de 2022 o despues de 11/2026"
+    },
+    {
+      "nombre": "gravedad_dos_valores",
+      "ok": true,
+      "detalle": "0 filas con gravedad fuera de ['CON HERIDOS', 'CON MUERTOS']"
+    },
+    {
+      "nombre": "modelo_anio_valido",
+      "ok": true,
+      "detalle": "0 modelos que no son un año de 4 digitos, tolerancia 4503 filas"
+    }
+  ],
+  "cambio_respecto_a_la_anterior": true,
+  "ruta_vigente": "data/raw/vehiculos_siniestros_runt.csv",
+  "ruta_fechada": "data/raw/historico/fecha_ingesta=2026-11-20/vehiculos_siniestros_runt.csv"
+}

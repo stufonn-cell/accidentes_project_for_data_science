@@ -40,7 +40,7 @@ log "Model metrics (gold/modelos/metricas.json):"
 aws s3 cp "s3://$BUCKET/gold/modelos/metricas.json" - | head -n 40
 
 # The pipeline starts the crawler without waiting for it. Wait here so the
-# tables are ready for Athena and Power BI when this script ends.
+# tables are ready for Athena when this script ends.
 log "Waiting for the crawler to register the tables (about 2 minutes)"
 CRAWLER="$STACK-crawler"
 sleep 15
@@ -51,4 +51,4 @@ LAST="$(aws glue get-crawler --name "$CRAWLER" --query Crawler.LastCrawl.Status 
 [[ "$LAST" == "SUCCEEDED" ]] || echo "Warning: the last crawl ended as $LAST. Check the crawler in the Glue console."
 aws glue get-tables --database-name "$(stack_output GlueDatabase)" --query 'TableList[].Name' --output text | tr '\t' '\n' | sort
 
-log "Done. To connect Power BI run: infra/scripts/powerbi.sh"
+log "Done. The tables can be queried in Athena (workgroup $STACK)"

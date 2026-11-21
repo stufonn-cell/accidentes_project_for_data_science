@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Gets everything Power BI needs to read the gold layer through Athena:
 # checks that the tables exist and creates an access key for the read-only
-# user accidentes-envigado-powerbi. Prints the values for the ODBC DSN.
+# user accidentes-runt-powerbi. Prints the values for the ODBC DSN.
 #
 # Each run replaces the previous key of that user, so run it again if the
 # key is lost. Run it after deploy.sh and run.sh.
@@ -39,7 +39,7 @@ cat <<INFO
 
 ==> ODBC settings for Power BI (Amazon Athena ODBC driver 2.x)
 
-  Data Source Name:     accidentes-envigado
+  Data Source Name:     accidentes-runt
   Region:               $REGION
   Catalog:              AwsDataCatalog
   Database:             $DATABASE

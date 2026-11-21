@@ -1,0 +1,10 @@
+# The API image only needs the code of api/ and src/ and its requirements.
+# Everything else stays out: data, dashboards, credentials and git history.
+*
+!requirements-api.txt
+!api/
+!src/
+**/__pycache__/
+**/*.pyc
+api/Dockerfile*
+api/requirements-test.txt

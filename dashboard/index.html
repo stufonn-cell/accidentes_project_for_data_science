@@ -3,146 +3,159 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Accidentalidad vial · Envigado</title>
-  <meta name="description" content="Tablero de siniestros de tránsito de Envigado 2010–2022 construido sobre la capa gold del proyecto.">
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <title>Gravedad de siniestros viales · Colombia</title>
+  <meta name="description" content="Tablero para secretarías de movilidad y autoridades de tránsito: vehículos involucrados en siniestros con víctimas en Colombia, RUNT, Ley 2251 de 2022.">
   <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
   <div class="app">
-    <aside class="lateral" aria-label="Navegación y filtros">
+    <aside class="lateral" aria-label="Orden de lectura y filtros">
       <div class="marca">
-        <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 2 3 21h18L12 2Z" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 9v5M12 17.2v.3" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>
-        <div><strong>Vía Segura</strong><span>Envigado · datos abiertos</span></div>
+        <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M16 2.5 29.5 16 16 29.5 2.5 16Z" fill="#f2b90f" stroke="#1f2226" stroke-width="1.6" stroke-linejoin="round"/><path d="M16 10v8M16 21.5v.4" stroke="#1f2226" stroke-width="2.6" stroke-linecap="round"/></svg>
+        <div><strong>Vía Segura</strong><span>Colombia · RUNT</span></div>
       </div>
 
-      <nav class="menu">
-        <a href="#resumen" class="activo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 11 12 4l9 7v9h-6v-6H9v6H3z"/></svg>Resumen</a>
-        <a href="#cuando"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.5"/><path d="M12 7v5l3.5 2"/></svg>Cuándo</a>
-        <a href="#porque"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>Por qué</a>
-        <a href="#modelo"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 18 9 12l4 3 7-9"/><circle cx="20" cy="6" r="1.6"/></svg>Modelo</a>
+      <nav class="menu" aria-label="Orden de lectura">
+        <a href="#problema" class="activo"><b>1</b>El problema</a>
+        <a href="#calidad"><b>2</b>Calidad del dato</a>
+        <a href="#tratamiento"><b>3</b>Cómo lo tratamos</a>
+        <a href="#hallazgos"><b>4</b>Qué encontramos</a>
+        <a href="#modelo"><b>5</b>Modelo</a>
+        <a href="#conclusiones"><b>6</b>Qué hacer</a>
       </nav>
 
-      <form class="filtros" id="filtros" aria-label="Filtros" onsubmit="return false">
-        <p class="filtros-t">Filtros</p>
+      <form class="filtros" aria-label="Filtros" onsubmit="return false">
+        <p class="filtros-t">Explorar los hallazgos</p>
+        <p class="filtros-n">Cambian las gráficas de la sección 4.</p>
         <div class="dos">
           <label class="campo">Desde<select id="f-desde"></select></label>
           <label class="campo">Hasta<select id="f-hasta"></select></label>
         </div>
-        <div class="campo"><span id="lbl-grav">Gravedad</span><div class="segmentos vertical" id="f-gravedad" role="group" aria-labelledby="lbl-grav"></div></div>
-        <div class="campo"><span id="lbl-area">Área</span><div class="segmentos" id="f-area" role="group" aria-labelledby="lbl-area"></div></div>
-        <label class="campo">Clase de accidente<select id="f-clase"></select></label>
-        <button type="button" class="boton-claro" id="btn-reset">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4"/></svg>Limpiar filtros
-        </button>
+        <p class="filtros-n" id="nota-parcial"></p>
+        <label class="campo">Departamento<select id="f-depto"></select></label>
+        <label class="campo">Tipo de vehículo<select id="f-tipo"></select></label>
+        <button type="button" class="boton-claro" id="btn-reset">Limpiar filtros</button>
       </form>
 
       <div class="fuente" id="fuente" role="status"></div>
     </aside>
 
-    <div class="principal">
-      <header class="barra">
-        <label class="buscar">
-          <span class="sr">Buscar barrio</span>
-          <input id="f-barrio" type="search" list="barrios" placeholder="Buscar barrio o vereda…" autocomplete="off">
-          <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="11" cy="11" r="6.5"/><path d="m16 16 4.5 4.5"/></svg>
-        </label>
-        <datalist id="barrios"></datalist>
-        <div class="chips" id="chips" aria-live="polite"></div>
-        <div class="periodo"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="15" rx="2.5"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg><span id="periodo"></span></div>
+    <main class="principal">
+      <header class="portada">
+        <h1>¿Qué siniestros con víctimas tienen más riesgo de ser mortales?</h1>
+        <p id="sub-portada"></p>
       </header>
 
-      <main>
-        <section class="bloque" id="resumen" aria-labelledby="t-resumen">
-          <span class="antetitulo">Resumen</span>
-          <h1 id="t-resumen" aria-live="polite"></h1>
-          <div class="inicio">
-            <figure class="panel panel-mapa">
-              <figcaption class="fila">
-                <div><strong>Mapa de calor · Valle de Aburrá</strong><span id="sub-mapa"></span></div>
-                <div class="segmentos compacto" id="f-vista" role="group" aria-label="Encuadre del mapa"></div>
-              </figcaption>
-              <div class="grafico mapa" id="g-mapa"></div>
-              <div class="escala" id="escala-mapa"></div>
-            </figure>
-            <div class="kpis" id="kpis"></div>
-          </div>
-        </section>
+      <section class="bloque" id="problema" aria-labelledby="t-problema">
+        <span class="paso"><b>1</b>El problema</span>
+        <h2 id="t-problema"></h2>
+        <div class="cifras" id="cifras"></div>
+        <div class="texto-proyecto">
+          <div class="panel"><h3>Para quién</h3><p>Secretarías de movilidad y autoridades de tránsito, la Agencia Nacional de Seguridad Vial y el Ministerio de Transporte: dónde enfocar controles y campañas, y qué tan completo es su reporte al RUNT.</p></div>
+          <div class="panel"><h3>Por qué importa</h3><p>En 2024 murieron 8.271 personas en las vías del país. La Ley 2251 de 2022 pide gestionar la seguridad vial con enfoque de sistema seguro, donde el vehículo es un componente que se puede intervenir.</p></div>
+          <div class="panel"><h3>Objetivo</h3><p>Predecir si un siniestro con víctimas será mortal a partir del vehículo y del contexto, con un modelo que funcione también en municipios que no vio al aprender.</p></div>
+        </div>
+      </section>
 
-        <section class="bloque" id="cuando" aria-labelledby="t-cuando">
-          <span class="antetitulo">Cuándo ocurren</span>
-          <h2 id="t-cuando"></h2>
-          <div class="paneles">
-            <figure class="panel">
-              <figcaption class="fila">
-                <div><strong id="t-serie">Siniestros por año</strong><span id="sub-serie"></span></div>
-                <div class="segmentos compacto" id="f-serie" role="group" aria-label="Granularidad"></div>
-              </figcaption>
-              <div class="leyenda" id="ley-serie"></div>
-              <div class="grafico" id="g-serie"></div>
-            </figure>
-            <figure class="panel">
-              <figcaption><strong>Día de la semana × hora</strong><span>Siniestros acumulados en el periodo filtrado</span></figcaption>
-              <div class="grafico" id="g-matriz"></div>
-              <div class="escala" id="escala-matriz"></div>
-            </figure>
-          </div>
-          <div class="tarjetas" id="tar-cuando"></div>
-        </section>
+      <section class="bloque" id="calidad" aria-labelledby="t-calidad">
+        <span class="paso"><b>2</b>Calidad del dato</span>
+        <h2 id="t-calidad">Antes de usar los datos: hay ciudades que dejaron de reportar y reportes que llegaron tarde</h2>
+        <div class="paneles">
+          <figure class="panel">
+            <h3 id="t-caida"></h3><span class="sub" id="sub-caida"></span>
+            <div class="grafico" id="g-caida"></div>
+          </figure>
+          <figure class="panel">
+            <h3 id="t-medellin"></h3><span class="sub">Vehículos reportados por mes en Medellín</span>
+            <div class="grafico" id="g-medellin"></div>
+            <p class="nota" id="nota-medellin"></p>
+          </figure>
+        </div>
+        <div class="paneles">
+          <figure class="panel">
+            <h3 id="t-espejismo"></h3><span class="sub" id="sub-espejismo"></span>
+            <div class="grafico" id="g-espejismo"></div>
+          </figure>
+          <figure class="panel">
+            <h3 id="t-anomalos"></h3><span class="sub" id="sub-anomalos"></span>
+            <div class="grafico" id="g-anomalos"></div>
+          </figure>
+        </div>
+      </section>
 
-        <section class="bloque" id="porque" aria-labelledby="t-porque">
-          <span class="antetitulo">Cómo y por qué</span>
-          <h2 id="t-porque"></h2>
-          <div class="paneles">
-            <figure class="panel">
-              <figcaption><strong>Clase de accidente</strong><span>Clic en una barra para filtrar</span></figcaption>
-              <div class="leyenda" id="ley-clase"></div>
-              <div class="grafico" id="g-clase"></div>
-            </figure>
-            <figure class="panel">
-              <figcaption><strong>Causas más frecuentes</strong><span>Las 8 causas con más siniestros</span></figcaption>
-              <div class="leyenda" id="ley-causa"></div>
-              <div class="grafico" id="g-causa"></div>
-            </figure>
-          </div>
-          <div class="paneles paneles-b">
-            <figure class="panel">
-              <figcaption><strong>Proporciones clave</strong><span>Sobre los siniestros del filtro actual</span></figcaption>
-              <div class="anillos" id="anillos"></div>
-            </figure>
-            <figure class="panel">
-              <figcaption><strong>Barrios y veredas</strong><span>Clic en un nombre para filtrar</span></figcaption>
-              <div class="rankings" id="rankings"></div>
-            </figure>
-          </div>
-        </section>
+      <section class="bloque" id="tratamiento" aria-labelledby="t-tratamiento">
+        <span class="paso"><b>3</b>Cómo lo tratamos</span>
+        <h2 id="t-tratamiento">Así preparamos los datos para que el modelo no aprenda los errores del reporte</h2>
+        <div class="cifras" id="cifras-tratamiento"></div>
+        <div class="panel">
+          <div class="carretera" id="carretera"></div>
+          <p class="tecnologia">Metodología CRISP-DM. El mismo procesamiento corre en un computador y en la nube (AWS).</p>
+        </div>
+      </section>
 
-        <section class="bloque" id="modelo" aria-labelledby="t-modelo">
-          <span class="antetitulo">Modelo predictivo</span>
-          <h2 id="t-modelo"></h2>
-          <div class="escenarios" id="modelos"></div>
-          <div class="paneles">
-            <figure class="panel">
-              <figcaption><strong id="t-confusion">Matriz de confusión</strong><span>Prueba temporal con siniestros de <span id="anios-prueba"></span></span></figcaption>
-              <div class="confusion" id="g-confusion"></div>
-            </figure>
-            <figure class="panel">
-              <figcaption><strong>Calibración por decil</strong><span>Probabilidad predicha frente a proporción observada</span></figcaption>
-              <div class="leyenda" id="ley-calib"></div>
-              <div class="grafico" id="g-calib"></div>
-            </figure>
+      <section class="bloque" id="hallazgos" aria-labelledby="t-hallazgos">
+        <span class="paso"><b>4</b>Qué encontramos</span>
+        <h2 id="t-hallazgos">A dónde enviar los controles y a qué vehículos</h2>
+        <div class="chips" id="chips" aria-live="polite"></div>
+        <figure class="panel ancho">
+          <div class="cabecera">
+            <div><h3 id="t-mapa"></h3><span class="sub" id="sub-mapa"></span></div>
+            <div class="segmentos claro" id="vista-mapa" role="group" aria-label="Vista del mapa de calor"></div>
           </div>
-          <details class="tabla-datos">
-            <summary>Tabla de métricas</summary>
-            <div class="tabla-scroll"><table id="tabla"></table></div>
-          </details>
-        </section>
+          <div class="grafico" id="g-mapa"></div>
+          <div class="escala" id="escala-mapa"></div>
+        </figure>
+        <div class="paneles">
+          <figure class="panel">
+            <h3 id="t-tipo"></h3><span class="sub" id="sub-tipo"></span>
+            <div class="grafico" id="g-tipo"></div>
+          </figure>
+          <figure class="panel">
+            <h3 id="t-volumen"></h3><span class="sub" id="sub-volumen"></span>
+            <div class="grafico" id="g-volumen"></div>
+          </figure>
+        </div>
+        <div class="paneles">
+          <figure class="panel">
+            <h3 id="t-edad"></h3><span class="sub" id="sub-edad"></span>
+            <div class="grafico" id="g-edad"></div>
+          </figure>
+          <figure class="panel">
+            <h3 id="t-depto"></h3><span class="sub" id="sub-depto"></span>
+            <div class="grafico" id="g-depto"></div>
+          </figure>
+        </div>
+      </section>
 
-        <details class="notas"><summary>Notas y fuente de datos</summary><div id="notas"></div></details>
-      </main>
-    </div>
+      <section class="bloque" id="modelo" aria-labelledby="t-modelo">
+        <span class="paso"><b>5</b>Modelo</span>
+        <h2 id="t-modelo"></h2>
+        <div class="paneles">
+          <figure class="panel">
+            <h3 id="t-cobertura"></h3><span class="sub" id="sub-cobertura"></span>
+            <div class="grafico" id="g-cobertura"></div>
+          </figure>
+          <figure class="panel">
+            <h3 id="t-modelos"></h3><span class="sub">Calificación de cada modelo al probarlo con 2024 (PR-AUC, de 0 a 1: más alto es mejor) · aprendieron con 2022 y 2023</span>
+            <div class="grafico" id="g-modelos"></div>
+            <p class="nota" id="nota-modelos"></p>
+          </figure>
+        </div>
+        <figure class="panel ancho">
+          <h3 id="t-letalidad"></h3><span class="sub" id="sub-letalidad"></span>
+          <div class="grafico" id="g-letalidad"></div>
+          <p class="nota" id="nota-grupos"></p>
+        </figure>
+      </section>
+
+      <section class="bloque" id="conclusiones" aria-labelledby="t-conclusiones">
+        <span class="paso"><b>6</b>Qué hacer</span>
+        <h2 id="t-conclusiones">Qué pueden hacer las autoridades de tránsito con esto</h2>
+        <ol class="conclusiones" id="lista-conclusiones"></ol>
+      </section>
+
+      <footer class="pie" id="pie"></footer>
+    </main>
   </div>
 
   <div class="tip" id="tip" role="status" hidden></div>

@@ -1,5 +1,5 @@
 Resources:
-  # bronze -> silver -> gold -> models -> crawler. Each Glue stage retries
+  # ingesta -> bronze -> silver -> gold -> models -> crawler. Each Glue stage retries
   # once, and any failure publishes the error to SNS before failing.
   PipelineStateMachine:
     Type: AWS::StepFunctions::StateMachine
@@ -9,9 +9,20 @@ Resources:
       RoleArn: !GetAtt StateMachineRole.Arn
       DefinitionString: |
         {
-          "Comment": "Pipeline batch de siniestros de Envigado",
-          "StartAt": "Bronze",
+          "Comment": "Pipeline batch del RUNT: vehiculos en siniestros con victimas",
+          "StartAt": "Ingesta",
           "States": {
+            "Ingesta": {
+              "Comment": "Downloads the dataset from datos.gov.co into raw/ and validates it. If validation fails, raw/ is not replaced and the pipeline stops.",
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": { "JobName": "${self:custom.prefix}-ingesta" },
+              "ResultPath": null,
+              "TimeoutSeconds": 900,
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
+              "Next": "Bronze"
+            },
             "Bronze": {
               "Type": "Task",
               "Resource": "arn:aws:states:::glue:startJobRun.sync",
@@ -66,8 +77,8 @@ Resources:
               "Resource": "arn:aws:states:::sns:publish",
               "Parameters": {
                 "TopicArn": "${AlertsTopic}",
-                "Subject": "Pipeline accidentes-envigado: OK",
-                "Message": "El pipeline termino: bronze, silver, gold y modelos actualizados."
+                "Subject": "Pipeline accidentes-runt: OK",
+                "Message": "El pipeline termino: ingesta, bronze, silver, gold y modelos actualizados."
               },
               "ResultPath": null,
               "End": true
@@ -77,7 +88,7 @@ Resources:
               "Resource": "arn:aws:states:::sns:publish",
               "Parameters": {
                 "TopicArn": "${AlertsTopic}",
-                "Subject": "Pipeline accidentes-envigado: FALLO",
+                "Subject": "Pipeline accidentes-runt: FALLO",
                 "Message.$": "States.JsonToString($.error)"
               },
               "ResultPath": null,

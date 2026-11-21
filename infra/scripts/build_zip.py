@@ -7,19 +7,22 @@ import pathlib
 import zipfile
 
 ROOT = pathlib.Path(__file__).resolve().parents[2]
-SRC = ROOT / "src"
+PACKAGES = ["src"]
 OUT = ROOT / "build" / "src.zip"
 
 
 def main():
     OUT.parent.mkdir(exist_ok=True)
-    files = sorted(SRC.glob("*.py"))
-    if not (SRC / "__init__.py").exists():
-        raise SystemExit("src/__init__.py is missing: Glue needs it to import src from the zip")
+    count = 0
     with zipfile.ZipFile(OUT, "w", zipfile.ZIP_DEFLATED) as zf:
-        for path in files:
-            zf.write(path, f"src/{path.name}")
-    print(f"Wrote {OUT.relative_to(ROOT)} with {len(files)} files")
+        for package in PACKAGES:
+            folder = ROOT / package
+            if not (folder / "__init__.py").exists():
+                raise SystemExit(f"{package}/__init__.py is missing: Glue needs it to import {package} from the zip")
+            for path in sorted(folder.glob("*.py")):
+                zf.write(path, f"{package}/{path.name}")
+                count += 1
+    print(f"Wrote {OUT.relative_to(ROOT)} with {count} files")
 
 
 if __name__ == "__main__":

@@ -1,4 +1,8 @@
 data/expandido/
+# RUNT source CSV: versioned in data/raw so results are reproducible; dated copies are not
+data/raw/historico/
+data/raw/rechazados/
+data/raw/respaldo/
 __pycache__/
 *.pyc
 .venv/
@@ -9,6 +13,6 @@ seccond-brains/
 build/
 infra/.env
 infra/.serverless/
-# Power BI local files (cache and per-user settings)
-powerbi/**/.pbi/localSettings.json
-powerbi/**/.pbi/cache.abf
+# Local tools and copies that do not belong in the repo
+.claude/
+entregas/

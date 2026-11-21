@@ -1,48 +1,605 @@
 {
-  "objetivo": "con_victimas",
+  "objetivo": "con_muertos",
+  "version": "runt-2026-11-20-deb82db1",
   "particion": {
-    "entrenamiento": "2010 a 2019",
-    "prueba": "2020 a 2022",
-    "filas_entrenamiento": 37462,
-    "filas_prueba": 6297,
-    "prevalencia_entrenamiento": 0.2883,
-    "prevalencia_prueba": 0.304
+    "seleccion": "GroupKFold k=5 por municipio sobre 2022-2024 sin meses con cobertura anomala",
+    "entrenamiento": "2022-2023 sin meses con cobertura anomala",
+    "prueba": "2024 sin meses con cobertura anomala",
+    "aparte": "2025-2026, cobertura cambiada",
+    "filas_entrenamiento": 226539,
+    "filas_prueba": 100529,
+    "prevalencia_entrenamiento": 0.0463,
+    "prevalencia_prueba": 0.052,
+    "filas_modelo_final": 327068,
+    "filas_excluidas_cobertura_anomala_2022_2024": 21399
   },
-  "modelos": {
+  "variables": {
+    "categoricas": [
+      "tipo_grupo",
+      "marca_grupo",
+      "departamento",
+      "autoridad"
+    ],
+    "numericas": [
+      "modelo",
+      "edad",
+      "mes"
+    ]
+  },
+  "umbral_decision": 0.0909,
+  "supuesto_costo": {
+    "costo_falso_negativo": 10,
+    "costo_falso_positivo": 1,
+    "regla": "umbral = 1 / (1 + costo_falso_negativo), valido con probabilidades calibradas",
+    "umbral_optimo_observado_2024": 0.09,
+    "costo_umbral_teorico_2024": 0.326,
+    "costo_umbral_optimo_2024": 0.3268,
+    "costo_sin_modelo_nunca_alertar": 0.5199,
+    "costo_alertar_todo": 0.948
+  },
+  "mejor_modelo": "gradient_boosting",
+  "criterio_seleccion": "mayor PR-AUC media en validacion agrupada por municipio",
+  "busqueda_hiperparametros": {
     "regresion_logistica": {
-      "roc_auc": 0.7469,
-      "average_precision": 0.6374,
-      "brier": 0.1717,
-      "precision": 0.8352,
-      "recall": 0.2727,
-      "matriz_confusion": [
-        [
-          4280,
-          103
-        ],
-        [
-          1392,
-          522
+      "espacio": {
+        "C": [
+          0.01,
+          0.1,
+          1.0
         ]
+      },
+      "mejores": {
+        "C": 0.01
+      },
+      "pr_auc_mejor": 0.1475,
+      "combinaciones": 3
+    },
+    "gradient_boosting": {
+      "espacio": {
+        "learning_rate": [
+          0.05,
+          0.1
+        ],
+        "max_leaf_nodes": [
+          15,
+          31,
+          63
+        ],
+        "l2_regularization": [
+          0.0,
+          1.0
+        ]
+      },
+      "mejores": {
+        "l2_regularization": 1.0,
+        "learning_rate": 0.1,
+        "max_leaf_nodes": 31
+      },
+      "pr_auc_mejor": 0.1607,
+      "combinaciones": 12
+    },
+    "filas_muestra": 120000,
+    "nota": "GridSearchCV de scikit-learn en lugar de optuna"
+  },
+  "validacion_agrupada": {
+    "prevalencia": {
+      "pr_auc_media": 0.0525,
+      "pr_auc_desviacion": 0.0291,
+      "roc_auc_media": 0.5,
+      "roc_auc_desviacion": 0.0,
+      "pr_auc_entrenamiento_media": 0.0484,
+      "pr_auc_por_pliegue": [
+        0.0065,
+        0.0406,
+        0.0728,
+        0.0701,
+        0.0724
+      ],
+      "prevalencia_por_pliegue": [
+        0.0065,
+        0.0406,
+        0.0728,
+        0.0701,
+        0.0724
+      ]
+    },
+    "regresion_logistica": {
+      "pr_auc_media": 0.1429,
+      "pr_auc_desviacion": 0.0774,
+      "roc_auc_media": 0.693,
+      "roc_auc_desviacion": 0.0551,
+      "pr_auc_entrenamiento_media": 0.2246,
+      "pr_auc_por_pliegue": [
+        0.0267,
+        0.1041,
+        0.2044,
+        0.1701,
+        0.2094
+      ],
+      "prevalencia_por_pliegue": [
+        0.0065,
+        0.0406,
+        0.0728,
+        0.0701,
+        0.0724
       ]
     },
     "gradient_boosting": {
-      "roc_auc": 0.7415,
-      "average_precision": 0.6355,
-      "brier": 0.1715,
-      "precision": 0.8545,
-      "recall": 0.2638,
-      "matriz_confusion": [
-        [
-          4297,
-          86
-        ],
-        [
-          1409,
-          505
-        ]
+      "pr_auc_media": 0.1622,
+      "pr_auc_desviacion": 0.0832,
+      "roc_auc_media": 0.7038,
+      "roc_auc_desviacion": 0.0651,
+      "pr_auc_entrenamiento_media": 0.259,
+      "pr_auc_por_pliegue": [
+        0.0342,
+        0.1218,
+        0.2306,
+        0.2108,
+        0.2137
+      ],
+      "prevalencia_por_pliegue": [
+        0.0065,
+        0.0406,
+        0.0728,
+        0.0701,
+        0.0724
+      ]
+    },
+    "bosque_aleatorio": {
+      "pr_auc_media": 0.1559,
+      "pr_auc_desviacion": 0.0814,
+      "roc_auc_media": 0.6953,
+      "roc_auc_desviacion": 0.0799,
+      "pr_auc_entrenamiento_media": 0.2535,
+      "pr_auc_por_pliegue": [
+        0.033,
+        0.1123,
+        0.2209,
+        0.1993,
+        0.2141
+      ],
+      "prevalencia_por_pliegue": [
+        0.0065,
+        0.0406,
+        0.0728,
+        0.0701,
+        0.0724
       ]
     }
   },
-  "mejor_modelo": "regresion_logistica"
+  "curva_aprendizaje": [
+    {
+      "filas_entrenamiento": 8677,
+      "pr_auc_entrenamiento": 0.2979,
+      "pr_auc_validacion": 0.1332
+    },
+    {
+      "filas_entrenamiento": 26032,
+      "pr_auc_entrenamiento": 0.278,
+      "pr_auc_validacion": 0.1475
+    },
+    {
+      "filas_entrenamiento": 86776,
+      "pr_auc_entrenamiento": 0.2552,
+      "pr_auc_validacion": 0.1578
+    }
+  ],
+  "modelos": {
+    "prevalencia": {
+      "roc_auc": 0.5,
+      "average_precision": 0.052,
+      "brier": 0.0493,
+      "precision": 0.0,
+      "recall": 0.0,
+      "verdaderos_negativos": 95302,
+      "falsos_positivos": 0,
+      "falsos_negativos": 5227,
+      "verdaderos_positivos": 0,
+      "tasa_alerta": 0.0,
+      "costo_esperado_por_registro": 0.5199,
+      "filas": 100529,
+      "prevalencia": 0.052
+    },
+    "regresion_logistica": {
+      "roc_auc": 0.8246,
+      "average_precision": 0.221,
+      "brier": 0.044,
+      "precision": 0.1989,
+      "recall": 0.6124,
+      "verdaderos_negativos": 82411,
+      "falsos_positivos": 12891,
+      "falsos_negativos": 2026,
+      "verdaderos_positivos": 3201,
+      "tasa_alerta": 0.1601,
+      "costo_esperado_por_registro": 0.3298,
+      "filas": 100529,
+      "prevalencia": 0.052,
+      "brier_sin_calibrar": 0.1796
+    },
+    "gradient_boosting": {
+      "roc_auc": 0.8247,
+      "average_precision": 0.2318,
+      "brier": 0.0438,
+      "precision": 0.2062,
+      "recall": 0.6065,
+      "verdaderos_negativos": 83100,
+      "falsos_positivos": 12202,
+      "falsos_negativos": 2057,
+      "verdaderos_positivos": 3170,
+      "tasa_alerta": 0.1529,
+      "costo_esperado_por_registro": 0.326,
+      "filas": 100529,
+      "prevalencia": 0.052,
+      "brier_sin_calibrar": 0.1695
+    },
+    "bosque_aleatorio": {
+      "roc_auc": 0.817,
+      "average_precision": 0.2153,
+      "brier": 0.0444,
+      "precision": 0.2027,
+      "recall": 0.572,
+      "verdaderos_negativos": 83539,
+      "falsos_positivos": 11763,
+      "falsos_negativos": 2237,
+      "verdaderos_positivos": 2990,
+      "tasa_alerta": 0.1468,
+      "costo_esperado_por_registro": 0.3395,
+      "filas": 100529,
+      "prevalencia": 0.052,
+      "brier_sin_calibrar": 0.1351
+    }
+  },
+  "regla_simple_carga_o_autoridad_nacional": {
+    "roc_auc": 0.7036,
+    "average_precision": 0.1324,
+    "brier": 0.1269,
+    "precision": 0.2083,
+    "recall": 0.5144,
+    "verdaderos_negativos": 85079,
+    "falsos_positivos": 10223,
+    "falsos_negativos": 2538,
+    "verdaderos_positivos": 2689,
+    "tasa_alerta": 0.1284,
+    "costo_esperado_por_registro": 0.3542,
+    "filas": 100529,
+    "prevalencia": 0.052
+  },
+  "calibracion_prueba": [
+    {
+      "prob_media": 0.0052,
+      "tasa_observada": 0.0049,
+      "filas": 10053,
+      "decil": 1
+    },
+    {
+      "prob_media": 0.0069,
+      "tasa_observada": 0.005,
+      "filas": 10053,
+      "decil": 2
+    },
+    {
+      "prob_media": 0.0107,
+      "tasa_observada": 0.009,
+      "filas": 10053,
+      "decil": 3
+    },
+    {
+      "prob_media": 0.0179,
+      "tasa_observada": 0.0147,
+      "filas": 10053,
+      "decil": 4
+    },
+    {
+      "prob_media": 0.0229,
+      "tasa_observada": 0.0192,
+      "filas": 10053,
+      "decil": 5
+    },
+    {
+      "prob_media": 0.0272,
+      "tasa_observada": 0.0305,
+      "filas": 10052,
+      "decil": 6
+    },
+    {
+      "prob_media": 0.0337,
+      "tasa_observada": 0.0387,
+      "filas": 10053,
+      "decil": 7
+    },
+    {
+      "prob_media": 0.0445,
+      "tasa_observada": 0.0465,
+      "filas": 10053,
+      "decil": 8
+    },
+    {
+      "prob_media": 0.1002,
+      "tasa_observada": 0.1064,
+      "filas": 10053,
+      "decil": 9
+    },
+    {
+      "prob_media": 0.2418,
+      "tasa_observada": 0.2451,
+      "filas": 10053,
+      "decil": 10
+    }
+  ],
+  "importancia_variables": [
+    {
+      "variable": "autoridad",
+      "caida_pr_auc": 0.1526,
+      "desviacion": 0.0009
+    },
+    {
+      "variable": "departamento",
+      "caida_pr_auc": 0.0307,
+      "desviacion": 0.0017
+    },
+    {
+      "variable": "tipo_grupo",
+      "caida_pr_auc": 0.0176,
+      "desviacion": 0.0025
+    },
+    {
+      "variable": "marca_grupo",
+      "caida_pr_auc": 0.0048,
+      "desviacion": 0.0014
+    },
+    {
+      "variable": "edad",
+      "caida_pr_auc": 0.0015,
+      "desviacion": 0.001
+    },
+    {
+      "variable": "modelo",
+      "caida_pr_auc": 0.0013,
+      "desviacion": 0.0004
+    },
+    {
+      "variable": "mes",
+      "caida_pr_auc": 0.0007,
+      "desviacion": 0.0004
+    }
+  ],
+  "validacion_agrupada_fuera_de_pliegue_mejor": {
+    "roc_auc": 0.713,
+    "average_precision": 0.1814,
+    "brier": 0.042,
+    "precision": 0.2113,
+    "recall": 0.4861,
+    "verdaderos_negativos": 282853,
+    "falsos_positivos": 28503,
+    "falsos_negativos": 8075,
+    "verdaderos_positivos": 7637,
+    "tasa_alerta": 0.1105,
+    "costo_esperado_por_registro": 0.334,
+    "filas": 327068,
+    "prevalencia": 0.048
+  },
+  "cobertura_cambiada_2025_2026": {
+    "todas_las_filas": {
+      "roc_auc": 0.8042,
+      "average_precision": 0.2711,
+      "brier": 0.0639,
+      "precision": 0.2066,
+      "recall": 0.712,
+      "verdaderos_negativos": 72076,
+      "falsos_positivos": 21813,
+      "falsos_negativos": 2298,
+      "verdaderos_positivos": 5681,
+      "tasa_alerta": 0.2699,
+      "costo_esperado_por_registro": 0.4397,
+      "filas": 101868,
+      "prevalencia": 0.0783
+    },
+    "sin_cobertura_anomala": {
+      "roc_auc": 0.8061,
+      "average_precision": 0.2726,
+      "brier": 0.0632,
+      "precision": 0.2079,
+      "recall": 0.7108,
+      "verdaderos_negativos": 70860,
+      "falsos_positivos": 20926,
+      "falsos_negativos": 2235,
+      "verdaderos_positivos": 5494,
+      "tasa_alerta": 0.2655,
+      "costo_esperado_por_registro": 0.4349,
+      "filas": 99515,
+      "prevalencia": 0.0777
+    },
+    "nota": "2025-2026 tiene cobertura cambiada (Medellin y Bogota casi dejan de reportar); no es comparable con 2024"
+  },
+  "agrupamiento": {
+    "municipios": 210,
+    "filas_cubiertas": 443675,
+    "variables": [
+      "prop_con_muertos",
+      "edad_promedio",
+      "prop_motos",
+      "prop_carga",
+      "prop_autoridad_nacional",
+      "log_registros"
+    ],
+    "silueta": {
+      "kmeans": {
+        "2": 0.3125,
+        "3": 0.2546,
+        "4": 0.2472,
+        "5": 0.2439,
+        "6": 0.2293,
+        "7": 0.2223,
+        "8": 0.2327
+      },
+      "jerarquico_ward": {
+        "2": 0.3192,
+        "3": 0.2362,
+        "4": 0.2376,
+        "5": 0.2278,
+        "6": 0.2226,
+        "7": 0.2304,
+        "8": 0.2135
+      }
+    },
+    "algoritmo_elegido": "kmeans",
+    "k_elegido": 2,
+    "silueta_elegida": 0.3125,
+    "mejor_k_jerarquico": 2,
+    "silueta_mejor_jerarquico": 0.3192,
+    "rand_ajustado_kmeans_vs_jerarquico_mismo_k": 0.2808,
+    "perfil_grupos": [
+      {
+        "grupo": 1,
+        "municipios": 97.0,
+        "registros": 28156.0,
+        "prop_con_muertos": 0.241,
+        "edad_promedio": 9.4681,
+        "prop_motos": 0.4948,
+        "prop_carga": 0.1666,
+        "prop_autoridad_nacional": 0.7006
+      },
+      {
+        "grupo": 2,
+        "municipios": 113.0,
+        "registros": 415519.0,
+        "prop_con_muertos": 0.0814,
+        "edad_promedio": 8.6653,
+        "prop_motos": 0.6154,
+        "prop_carga": 0.0616,
+        "prop_autoridad_nacional": 0.1912
+      }
+    ],
+    "ejemplos_por_grupo": {
+      "1": [
+        "CAJICA (CUNDINAMARCA)",
+        "CHIGORODO (ANTIOQUIA)",
+        "BUENAVENTURA (VALLE DEL CAUCA)",
+        "GARZON (HUILA)",
+        "RIOHACHA (LA GUAJIRA)"
+      ],
+      "2": [
+        "MEDELLIN (ANTIOQUIA)",
+        "BOGOTA (BOGOTA D.C.)",
+        "CALI (VALLE DEL CAUCA)",
+        "BARRANQUILLA (ATLANTICO)",
+        "BELLO (ANTIOQUIA)"
+      ]
+    }
+  },
+  "desempeno_por_grupo": [
+    {
+      "grupo": 0,
+      "municipios": 378,
+      "roc_auc": 0.6099,
+      "average_precision": 0.3663,
+      "brier": 0.2006,
+      "precision": 0.2892,
+      "recall": 0.8209,
+      "verdaderos_negativos": 744,
+      "falsos_positivos": 2197,
+      "falsos_negativos": 195,
+      "verdaderos_positivos": 894,
+      "tasa_alerta": 0.767,
+      "costo_esperado_por_registro": 1.029,
+      "filas": 4030,
+      "prevalencia": 0.2702
+    },
+    {
+      "grupo": 1,
+      "municipios": 96,
+      "roc_auc": 0.5802,
+      "average_precision": 0.2859,
+      "brier": 0.1809,
+      "precision": 0.2483,
+      "recall": 0.7624,
+      "verdaderos_negativos": 4352,
+      "falsos_positivos": 9288,
+      "falsos_negativos": 956,
+      "verdaderos_positivos": 3068,
+      "tasa_alerta": 0.6995,
+      "costo_esperado_por_registro": 1.067,
+      "filas": 17664,
+      "prevalencia": 0.2278
+    },
+    {
+      "grupo": 2,
+      "municipios": 113,
+      "roc_auc": 0.657,
+      "average_precision": 0.1253,
+      "brier": 0.0319,
+      "precision": 0.1776,
+      "recall": 0.3467,
+      "verdaderos_negativos": 277757,
+      "falsos_positivos": 17018,
+      "falsos_negativos": 6924,
+      "verdaderos_positivos": 3675,
+      "tasa_alerta": 0.0678,
+      "costo_esperado_por_registro": 0.2825,
+      "filas": 305374,
+      "prevalencia": 0.0347
+    }
+  ],
+  "casos": [
+    {
+      "caso": "tractocamion en via nacional",
+      "tipo_grupo": "TRACTOCAMION",
+      "marca_grupo": "KENWORTH",
+      "departamento": "CESAR",
+      "autoridad": "DIRECCION DE TRANSITO Y TRANSPORTE",
+      "modelo": 2012,
+      "edad": 12,
+      "mes": 12,
+      "probabilidad": 0.4243,
+      "alerta": 1
+    },
+    {
+      "caso": "moto nueva en Medellin",
+      "tipo_grupo": "MOTOCICLETA",
+      "marca_grupo": "AKT",
+      "departamento": "ANTIOQUIA",
+      "autoridad": "STRIA DE TTOYTTE MEDELLIN",
+      "modelo": 2023,
+      "edad": 1,
+      "mes": 6,
+      "probabilidad": 0.0055,
+      "alerta": 0
+    },
+    {
+      "caso": "la misma moto en via nacional",
+      "tipo_grupo": "MOTOCICLETA",
+      "marca_grupo": "AKT",
+      "departamento": "ANTIOQUIA",
+      "autoridad": "DIRECCION DE TRANSITO Y TRANSPORTE",
+      "modelo": 2023,
+      "edad": 1,
+      "mes": 6,
+      "probabilidad": 0.1933,
+      "alerta": 1
+    },
+    {
+      "caso": "automovil en Bogota",
+      "tipo_grupo": "AUTOMOVIL",
+      "marca_grupo": "CHEVROLET",
+      "departamento": "BOGOTA D.C.",
+      "autoridad": "SECRETARIA DISTRITAL DE MOVILIDAD DE BOGOTA",
+      "modelo": 2015,
+      "edad": 9,
+      "mes": 3,
+      "probabilidad": 0.0194,
+      "alerta": 0
+    },
+    {
+      "caso": "bus intermunicipal en Boyaca",
+      "tipo_grupo": "BUS",
+      "marca_grupo": "CHEVROLET",
+      "departamento": "BOYACA",
+      "autoridad": "DIRECCION DE TRANSITO Y TRANSPORTE",
+      "modelo": 2010,
+      "edad": 14,
+      "mes": 1,
+      "probabilidad": 0.1852,
+      "alerta": 1
+    }
+  ]
 }

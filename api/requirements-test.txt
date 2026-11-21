@@ -1,0 +1,4 @@
+# Only for the tests of the API: pip install -r api/requirements-test.txt
+-r ../requirements-api.txt
+pytest==9.2.0
+httpx==0.28.1

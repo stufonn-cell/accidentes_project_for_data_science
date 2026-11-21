@@ -39,4 +39,4 @@ else
 fi
 
 log "Tables in the catalog"
-aws glue get-tables --database-name accidentes_envigado --query 'TableList[].Name' --output text 2>/dev/null | tr '\t' '\n' || echo "None"
+aws glue get-tables --database-name accidentes_runt --query 'TableList[].Name' --output text 2>/dev/null | tr '\t' '\n' || echo "None"

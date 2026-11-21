@@ -19,12 +19,18 @@ from pyarrow import fs as pafs
 
 DATA_DIR = os.environ.get("DATA_DIR", "data").rstrip("/")
 
-RAW_CSV = f"{DATA_DIR}/raw/accidentalidad_envigado.csv"
-BRONZE = f"{DATA_DIR}/bronze/accidentes"
-SILVER = f"{DATA_DIR}/silver/accidentes"
-EXPANDED = f"{DATA_DIR}/expandido/accidentes"
-GOLD_SINIESTROS = f"{DATA_DIR}/gold/siniestros"
-GOLD_AGREGADOS = f"{DATA_DIR}/gold/agregados"
+# Source: RUNT vehicles involved in accidents with victims (Ley 2251 de
+# 2022), all of Colombia, datos.gov.co dataset 6jmc-vaxk
+RAW_FILE = "vehiculos_siniestros_runt.csv"
+RAW_CSV = f"{DATA_DIR}/raw/{RAW_FILE}"
+RAW_MANIFEST = f"{DATA_DIR}/raw/manifiesto.json"
+BRONZE = f"{DATA_DIR}/bronze/vehiculos"
+SILVER = f"{DATA_DIR}/silver/vehiculos"
+EXPANDED = f"{DATA_DIR}/expandido/vehiculos"
+# Gold: one folder per table so Athena maps each folder to one table
+GOLD_VEHICULOS = f"{DATA_DIR}/gold/vehiculos"
+GOLD_MUNICIPIO_MES = f"{DATA_DIR}/gold/municipio_mes"
+GOLD_MUNICIPIO = f"{DATA_DIR}/gold/municipio"
 GOLD_MODELOS = f"{DATA_DIR}/gold/modelos"
 
 IS_CLOUD = "://" in DATA_DIR
@@ -33,9 +39,8 @@ IS_CLOUD = "://" in DATA_DIR
 def _filesystem(path):
     """Return the pyarrow filesystem and the path inside it, or (None, path) locally.
 
-    Only DATA_DIR is parsed as a URI: pyarrow rejects non ASCII characters
-    in URIs, such as the ñ of the año=2010 partitions, so the rest of the
-    path is appended as plain text.
+    Only DATA_DIR is parsed as a URI: pyarrow rejects some characters in
+    URIs, so the rest of the path is appended as plain text.
     """
     if not IS_CLOUD:
         return None, path
@@ -88,6 +93,15 @@ def write_parquet(df, path, partition_cols=None):
     # Athena reads timestamps in milliseconds; pandas would write nanoseconds
     df.to_parquet(inner, filesystem=filesystem, index=False, partition_cols=partition_cols,
                   coerce_timestamps="ms", allow_truncated_timestamps=True)
+
+
+def read_bytes(path):
+    filesystem, inner = _filesystem(path)
+    if filesystem is None:
+        with open(path, "rb") as f:
+            return f.read()
+    with filesystem.open_input_stream(inner) as f:
+        return f.read()
 
 
 def write_bytes(path, data):

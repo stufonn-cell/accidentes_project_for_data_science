@@ -1,21 +1,25 @@
-"""Exploratory analysis over the gold layer.
+"""Exploratory analysis of the RUNT vehicles in accidents with victims.
 
-Generates the report figures in reports/figuras and prints the numbers
-behind the conclusions of reports/eda.md. Titles and labels stay in
+Reads silver (one row per vehicle) and gold/municipio_mes, generates the
+report figures in reports/figuras and prints the numbers behind
+reports/eda.md: profile of the 9 source variables, coverage audit by
+municipality and month, and class imbalance. Titles and labels stay in
 Spanish because the report is in Spanish.
 """
+
+import os
 
 import matplotlib
 matplotlib.use("Agg")
 
 import matplotlib.pyplot as plt
 import pandas as pd
-import seaborn as sns
 
 from src import config
-from src.silver import DAYS
 
 FIGURES = "reports/figuras"
+RED = "firebrick"
+BLUE = "steelblue"
 
 
 def save(fig, name):
@@ -24,99 +28,123 @@ def save(fig, name):
     plt.close(fig)
 
 
-def monthly_series(accidents):
-    by_month = accidents.groupby(pd.Grouper(key="fecha", freq="MS")).size()
+def profile(df, raw):
+    print("== profile of the 9 source variables ==")
+    print(f"rows: {len(df)}, identical rows: {int(raw.duplicated().sum())}")
+    for col in raw.columns:
+        empty = int((raw[col].fillna("").str.strip() == "").sum())
+        print(f"{col}: {raw[col].nunique()} distinct raw values, {empty} empty")
+    print(f"brands after normalization: {df['marca'].nunique()}, kept in marca_grupo: "
+          f"{df['marca_grupo'].nunique() - 1} (+ OTRAS with {int((df['marca_grupo'] == 'OTRAS').sum())} rows)")
+    print(f"authorities after normalization: {df['autoridad'].nunique()}")
+    print(f"municipality keys: {df['municipio'].nunique()}, names: {df['municipio_nombre'].nunique()}, "
+          f"departments: {df['departamento'].nunique()}, months: {df['periodo'].nunique()}")
+    print("vehicle type share:")
+    print(df["tipo"].value_counts(normalize=True).head(8).round(4).to_string())
+    print("vehicle class share and deaths:")
+    print(df.groupby("clase_vehiculo")["con_muertos"].agg(["size", "mean"]).round(4).to_string())
+    print(f"model year: {int(df['modelo'].min())} to {int(df['modelo'].max())}, "
+          f"impossible: {int(df['modelo_invalido'].sum())}")
+    print(f"edad at accident: median {df['edad'].median()}, mean {df['edad'].mean():.2f}; "
+          f"source EDAD_VEHICULO median {df['edad_fuente'].median()}, mean {df['edad_fuente'].mean():.2f}")
+    gap = (df["edad_fuente"] - df["edad"]).dropna()
+    print(f"EDAD_VEHICULO - edad: median {gap.median()}, by year "
+          f"{df.assign(g=df['edad_fuente'] - df['edad']).groupby('anio')['g'].median().to_dict()}")
+
+
+def imbalance(df):
+    print("== imbalance ==")
+    deaths = int(df["con_muertos"].sum())
+    print(f"con muertos: {deaths} of {len(df)} ({deaths / len(df):.4f})")
+    by_muni = df.groupby("municipio")["con_muertos"].sum()
+    print(f"municipalities with 0 deaths: {int((by_muni == 0).sum())}, with >= 10: {int((by_muni >= 10).sum())}")
+    print("share with deaths by year:")
+    print(df.groupby("anio")["con_muertos"].agg(["size", "mean"]).round(4).to_string())
+    no_med = df[df["municipio"] != "MEDELLIN (ANTIOQUIA)"]
+    print("share with deaths by year without Medellin:")
+    print(no_med.groupby("anio")["con_muertos"].mean().round(4).to_string())
+    print("share with deaths by authority type (1 = national police):")
+    print(df.groupby("autoridad_nacional")["con_muertos"].agg(["size", "mean"]).round(4).to_string())
+    print("share with deaths by type (top 10):")
+    top = df["tipo"].value_counts().index[:10]
+    print(df[df["tipo"].isin(top)].groupby("tipo")["con_muertos"].mean().sort_values().round(4).to_string())
+
+
+def coverage(df, months):
+    print("== coverage audit ==")
+    big = df["municipio"].value_counts().head(5).index
+    print("rows per year in the 5 largest municipalities:")
+    print(df[df["municipio"].isin(big)].pivot_table(index="municipio", columns="anio", values="con_muertos",
+                                                    aggfunc="size", fill_value=0).to_string())
+    judged = months[months["municipio_evaluable"] == 1]
+    print(f"municipalities judged (median 2022-2024 >= 5 rows a month): {judged['municipio'].nunique()}")
+    print("alerts by year (municipality-months):")
+    print(months.groupby("anio")[["alerta_caida", "alerta_carga_masiva", "alerta_cobertura"]].sum().to_string())
+    print(f"rows in municipality-months with an alert: {int(df['cobertura_anomala'].sum())} "
+          f"({df['cobertura_anomala'].mean():.4f})")
+    worst = (judged.groupby("municipio")["alerta_caida"].sum().sort_values(ascending=False).head(8))
+    print("municipalities with most drop months:")
+    print(worst.to_string())
+    bulk = months[months["alerta_carga_masiva"] == 1].sort_values("registros", ascending=False).head(5)
+    print("largest bulk loads:")
+    print(bulk[["municipio", "periodo", "registros", "mediana_referencia"]].to_string(index=False))
+    print(f"municipalities with >= 100 rows: {(df['municipio'].value_counts() >= 100).sum()}, "
+          f"share of rows: {df['municipio'].value_counts()[lambda s: s >= 100].sum() / len(df):.4f}")
+
+
+def figures(df, months):
+    os.makedirs(FIGURES, exist_ok=True)
+    monthly = df.groupby("fecha").agg(registros=("con_muertos", "size"), prop=("con_muertos", "mean"))
     fig, ax = plt.subplots(figsize=(10, 4))
-    by_month.plot(ax=ax, color="steelblue")
-    ax.set_title("Siniestros por mes en Envigado, 2010 a 2022")
+    monthly["registros"].plot(ax=ax, color=BLUE, label="Registros")
+    ax.set_ylabel("Vehiculos registrados")
+    ax2 = ax.twinx()
+    (monthly["prop"] * 100).plot(ax=ax2, color=RED, label="% con muertos")
+    ax2.set_ylabel("% con muertos")
+    ax.set_title("Vehiculos en siniestros con victimas por mes, Colombia 2022-2026")
     ax.set_xlabel("")
-    ax.set_ylabel("Siniestros")
     save(fig, "01_serie_mensual")
 
+    top = df["municipio"].value_counts().head(20).index
+    heat = (months[months["municipio"].isin(top)].pivot(index="municipio", columns="periodo", values="registros")
+            .reindex(top))
+    share = heat.div(heat.max(axis=1), axis=0)
+    fig, ax = plt.subplots(figsize=(12, 6))
+    ax.imshow(share.values, aspect="auto", cmap="viridis")
+    ax.set_yticks(range(len(top)), top, fontsize=7)
+    ticks = list(range(0, share.shape[1], 6))
+    ax.set_xticks(ticks, [share.columns[i] for i in ticks], fontsize=7)
+    ax.set_title("Cobertura: registros por mes / maximo del municipio (20 municipios con mas registros)")
+    save(fig, "07_cobertura_municipio_mes")
 
-def day_and_hour(accidents):
-    table = accidents.pivot_table(index="dia_semana", columns="hora",
-                                  values="radicado", aggfunc="size", fill_value=0)
-    table = table.reindex(DAYS)
-    fig, ax = plt.subplots(figsize=(11, 4))
-    sns.heatmap(table, cmap="YlOrRd", ax=ax)
-    ax.set_title("Siniestros por dia de la semana y hora")
-    ax.set_xlabel("Hora del dia")
-    ax.set_ylabel("")
-    save(fig, "02_dia_hora")
-
-
-def neighborhoods(accidents):
-    top = accidents["barrio"].value_counts().head(12).sort_values()
+    top_types = df["tipo"].value_counts().index[:10]
+    rate = df[df["tipo"].isin(top_types)].groupby("tipo")["con_muertos"].mean().sort_values() * 100
     fig, ax = plt.subplots(figsize=(8, 5))
-    top.plot.barh(ax=ax, color="steelblue")
-    ax.set_title("Barrios con mas siniestros")
-    ax.set_xlabel("Siniestros")
-    save(fig, "03_barrios")
+    rate.plot.barh(ax=ax, color=RED)
+    ax.axvline(df["con_muertos"].mean() * 100, color="gray", linestyle="--")
+    ax.set_title("% de registros con muertos por tipo de vehiculo")
+    ax.set_xlabel("% con muertos")
+    ax.set_ylabel("")
+    save(fig, "08_muertos_por_tipo")
 
-
-def severity_by_year(accidents):
-    table = accidents.pivot_table(index="anio", columns="gravedad",
-                                  values="radicado", aggfunc="size", fill_value=0)
-    share = table.div(table.sum(axis=1), axis=0)
-    fig, ax = plt.subplots(figsize=(9, 4))
-    share[["SOLO DAÑOS", "HERIDOS", "MUERTOS"]].plot.bar(
-        stacked=True, ax=ax, color=["lightgray", "orange", "firebrick"])
-    ax.set_title("Composicion de la gravedad por año")
-    ax.set_xlabel("")
-    ax.set_ylabel("Proporcion")
-    ax.legend(title="")
-    save(fig, "04_gravedad_año")
-
-
-def classes_and_causes(accidents):
-    fig, axes = plt.subplots(1, 2, figsize=(12, 4))
-    accidents["clase_accidente"].value_counts().head(6).sort_values().plot.barh(
-        ax=axes[0], color="steelblue")
-    axes[0].set_title("Clases de accidente")
-    accidents["causa"].value_counts().head(8).sort_values().plot.barh(
-        ax=axes[1], color="steelblue")
-    axes[1].set_title("Causas mas frecuentes")
-    save(fig, "05_clases_causas")
-
-
-def victims_by_time_slot(accidents):
-    table = accidents.groupby("franja")["con_victimas"].mean()
-    table = table.reindex(["madrugada", "manana", "tarde", "noche"])
-    fig, ax = plt.subplots(figsize=(7, 4))
-    table.plot.bar(ax=ax, color="orange")
-    ax.set_title("Proporcion de siniestros con victimas por franja")
-    ax.set_xlabel("")
-    ax.set_ylabel("Proporcion con victimas")
-    save(fig, "06_victimas_franja")
-
-
-def summary(accidents):
-    print(f"accidents: {len(accidents)}")
-    print(f"date range: {accidents['fecha'].min().date()} to {accidents['fecha'].max().date()}")
-    print("severity:")
-    print(accidents["gravedad"].value_counts().to_string())
-    print(f"share with victims: {accidents['con_victimas'].mean():.3f}")
-    print("top 5 neighborhoods:")
-    print(accidents["barrio"].value_counts().head(5).to_string())
-    print("victims by time slot:")
-    print(accidents.groupby("franja")["con_victimas"].mean().round(3).to_string())
-    print("victims by class:")
-    print(accidents.groupby("clase_accidente")["con_victimas"].mean().round(3).to_string())
-    print(f"accidents with coordinates: {accidents['lon'].notna().mean():.3f}")
+    by_age = df[df["edad"] <= 30].groupby("edad")["con_muertos"].mean() * 100
+    fig, ax = plt.subplots(figsize=(8, 4))
+    by_age.plot(ax=ax, color=RED, marker="o")
+    ax.set_title("% con muertos por edad del vehiculo al momento del siniestro")
+    ax.set_xlabel("Edad (años)")
+    ax.set_ylabel("% con muertos")
+    save(fig, "09_muertos_por_edad")
 
 
 def main():
-    accidents = config.read_parquet(config.GOLD_SINIESTROS)
-    accidents["anio"] = accidents["anio"].astype(int)
-
-    monthly_series(accidents)
-    day_and_hour(accidents)
-    neighborhoods(accidents)
-    severity_by_year(accidents)
-    classes_and_causes(accidents)
-    victims_by_time_slot(accidents)
-    summary(accidents)
+    raw = config.read_csv(config.RAW_CSV, dtype=str, keep_default_na=False)
+    df = config.read_parquet(config.SILVER)
+    df["anio"] = df["anio"].astype(int)
+    months = config.read_parquet(f"{config.GOLD_MUNICIPIO_MES}/municipio_mes.parquet")
+    profile(df, raw)
+    imbalance(df)
+    coverage(df, months)
+    figures(df, months)
     print(f"figures saved to {FIGURES}")
 
 

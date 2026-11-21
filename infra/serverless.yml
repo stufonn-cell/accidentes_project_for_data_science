@@ -1,4 +1,4 @@
-service: accidentes-envigado
+service: accidentes-runt
 frameworkVersion: '^4.43.0'
 configValidationMode: error
 
@@ -22,7 +22,7 @@ custom:
   prefix: ${self:service}
   # The account id makes the bucket name unique across AWS accounts
   bucketName: ${self:service}-lake-${aws:accountId}
-  databaseName: accidentes_envigado
+  databaseName: accidentes_runt
   # Same versions as requirements.txt, minus the plotting libraries
   pythonModules: pandas==3.0.3,numpy==2.4.4,pyarrow==24.0.0,scikit-learn==1.9.0,joblib==1.5.3
   # The schedule is created disabled: enable it with --param="scheduleState=ENABLED"

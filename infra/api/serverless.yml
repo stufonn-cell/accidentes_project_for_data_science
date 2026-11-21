@@ -1,0 +1,82 @@
+# Prediction API on AWS: one Lambda function from a container image behind
+# an API Gateway HTTP API. It is a separate stack from the data lake
+# (infra/serverless.yml), so it can be deployed and removed on its own.
+#
+# Deploy it with infra/scripts/api.sh, not by hand: the script checks that
+# the lake and the model exist and sets the API key.
+service: accidentes-runt-api
+frameworkVersion: '^4.43.0'
+
+provider:
+  name: aws
+  stage: dev
+  region: us-east-1
+  stackName: ${self:service}
+  architecture: x86_64
+  logRetentionInDays: 14
+  # Serverless builds the image with Docker and pushes it to ECR.
+  # scikit-learn, pandas and pyarrow together are bigger than the 250 MB
+  # allowed for a zip with layers; a container image can be up to 10 GB.
+  ecr:
+    scanOnPush: true
+    images:
+      api:
+        path: ../..
+        file: api/Dockerfile.lambda
+        platform: linux/amd64
+        # Lambda does not accept the attestation manifest Docker adds by default
+        provenance: 'false'
+  httpApi:
+    name: ${self:service}
+    payload: '2.0'
+  iam:
+    role:
+      statements:
+        # Read-only, and only the model folders of the lake
+        - Effect: Allow
+          Action: s3:GetObject
+          Resource:
+            - arn:aws:s3:::${self:custom.bucketName}/gold/modelos/*
+            - arn:aws:s3:::${self:custom.bucketName}/registro_modelos/*
+        - Effect: Allow
+          Action:
+            - s3:GetBucketLocation
+            - s3:ListBucket
+          Resource: arn:aws:s3:::${self:custom.bucketName}
+
+custom:
+  # Same name as in infra/serverless.yml
+  bucketName: accidentes-runt-lake-${aws:accountId}
+
+functions:
+  api:
+    name: ${self:service}
+    description: Probabilidad de que un siniestro deje victimas
+    image:
+      name: api
+    # pandas and scikit-learn need memory to load; more memory also means more CPU
+    memorySize: 1024
+    # API Gateway waits 30 seconds at most
+    timeout: 29
+    environment:
+      DATA_DIR: s3://${self:custom.bucketName}
+      # Required: the API answers 401 without the X-API-Key header
+      API_KEY: ${param:apiKey}
+      # Empty serves the latest trained model; a version serves registro_modelos/<version>
+      MODEL_VERSION: ${param:modelVersion, ''}
+    events:
+      - httpApi:
+          method: GET
+          path: /health
+      - httpApi:
+          method: POST
+          path: /predict
+      - httpApi:
+          method: POST
+          path: /predict/batch
+      - httpApi:
+          method: GET
+          path: /docs
+      - httpApi:
+          method: GET
+          path: /openapi.json

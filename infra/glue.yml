@@ -5,11 +5,13 @@ Resources:
       CatalogId: !Ref AWS::AccountId
       DatabaseInput:
         Name: ${self:custom.databaseName}
-        Description: Siniestros viales de Envigado, capas silver y gold
+        Description: Vehiculos en siniestros con victimas (RUNT), capas silver y gold
 
-  # Registers silver and every gold table in the catalog, so Athena and
-  # Power BI can query them. One target per table folder: the crawler names
-  # each table after its folder (siniestros, por_mes, metricas, ...).
+  # Registers silver and every gold table in the catalog, so Athena can
+  # query them. One target per table folder: the crawler names each table
+  # after its folder (vehiculos, municipio_mes, metricas, ...). silver and
+  # gold both have a vehiculos folder; the crawler keeps both, adding a
+  # suffix to the second one.
   LakeCrawler:
     Type: AWS::Glue::Crawler
     Properties:
@@ -18,22 +20,40 @@ Resources:
       DatabaseName: !Ref GlueDatabase
       Targets:
         S3Targets:
-          - Path: s3://${self:custom.bucketName}/silver/accidentes/
-          - Path: s3://${self:custom.bucketName}/gold/siniestros/
-          - Path: s3://${self:custom.bucketName}/gold/agregados/por_mes/
-          - Path: s3://${self:custom.bucketName}/gold/agregados/por_barrio/
-          - Path: s3://${self:custom.bucketName}/gold/agregados/por_dia_hora/
-          - Path: s3://${self:custom.bucketName}/gold/agregados/por_clase/
-          - Path: s3://${self:custom.bucketName}/gold/agregados/por_causa/
-          - Path: s3://${self:custom.bucketName}/gold/agregados/por_gravedad_anio/
-          - Path: s3://${self:custom.bucketName}/gold/modelos/predicciones/
+          - Path: s3://${self:custom.bucketName}/silver/vehiculos/
+          - Path: s3://${self:custom.bucketName}/gold/vehiculos/
+          - Path: s3://${self:custom.bucketName}/gold/municipio_mes/
+          - Path: s3://${self:custom.bucketName}/gold/municipio/
           - Path: s3://${self:custom.bucketName}/gold/modelos/metricas/
+          - Path: s3://${self:custom.bucketName}/gold/modelos/predicciones/
+          - Path: s3://${self:custom.bucketName}/gold/modelos/grupos/
+          - Path: s3://${self:custom.bucketName}/gold/modelos/letalidad/
       SchemaChangePolicy:
         UpdateBehavior: UPDATE_IN_DATABASE
         DeleteBehavior: DEPRECATE_IN_DATABASE
 
+  # Ingestion: downloads the dataset from datos.gov.co into raw/ and validates
+  # it. A Python shell job (1/16 of a DPU): downloading 50 MB needs no Spark.
+  # The script is src/ingesta.py, uploaded as it is by deploy.sh.
+  IngestaJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ${self:custom.prefix}-ingesta
+      Role: !GetAtt GlueJobRole.Arn
+      MaxCapacity: 0.0625
+      Timeout: 10
+      MaxRetries: 0
+      Command:
+        Name: pythonshell
+        PythonVersion: '3.9'
+        ScriptLocation: s3://${self:custom.bucketName}/scripts/ingesta.py
+      DefaultArguments:
+        --data_dir: s3://${self:custom.bucketName}
+
   # One Glue job per stage. All of them run glue_jobs/run_stage.py with
-  # a different --stage, on the smallest Spark size (2 workers G.1X).
+  # a different --stage, on the smallest Spark size (2 workers G.1X). Every
+  # stage runs the pandas module of src on the driver (450 thousand rows
+  # fit in memory); distributed Spark processing is a pending item.
   BronzeJob:
     Type: AWS::Glue::Job
     Properties:
