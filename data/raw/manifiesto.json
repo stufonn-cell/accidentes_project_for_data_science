@@ -3,10 +3,11 @@
   "licencia": "CC BY-SA 4.0",
   "dataset_id": "6jmc-vaxk",
   "url": "https://www.datos.gov.co/resource/6jmc-vaxk.csv",
-  "ejecutado_en": "2026-11-20T21:05:49+00:00",
-  "fecha_descarga": "2026-11-20",
-  "origen": "archivo_local",
-  "archivo_local": "runt_local.csv",
+  "ejecutado_en": "2026-11-21T20:07:27+00:00",
+  "fecha_descarga": "2026-11-21",
+  "filas_en_portal": 450335,
+  "ultima_modificacion_fuente": "Fri, 04 Sep 2026 20:20:09 GMT",
+  "origen": "portal",
   "filas": 450335,
   "columnas": [
     "MARCA_VEHICULO",
@@ -33,8 +34,8 @@
   "meses": 57,
   "mes_minimo": "2022-01",
   "mes_maximo": "2026-09",
-  "bytes": 50747126,
-  "sha256": "deb82db1f8b17348c2e264f2d804237734270feb34a7411a15740da4a6395222",
+  "bytes": 50747124,
+  "sha256": "68160f32200c1817e066ae91b65fd729fe88e2a8e0674ddeb90a968a92c3f9fc",
   "validaciones": [
     {
       "nombre": "columnas",
@@ -45,6 +46,11 @@
       "nombre": "filas_minimas",
       "ok": true,
       "detalle": "450335 filas, minimo 100000"
+    },
+    {
+      "nombre": "filas_completas",
+      "ok": true,
+      "detalle": "450335 filas descargadas, el portal reporta 450335"
     },
     {
       "nombre": "filas_bien_formadas",
@@ -79,5 +85,5 @@
   ],
   "cambio_respecto_a_la_anterior": true,
   "ruta_vigente": "data/raw/vehiculos_siniestros_runt.csv",
-  "ruta_fechada": "data/raw/historico/fecha_ingesta=2026-11-20/vehiculos_siniestros_runt.csv"
+  "ruta_fechada": "data/raw/historico/fecha_ingesta=2026-11-21/vehiculos_siniestros_runt.csv"
 }

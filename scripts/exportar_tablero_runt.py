@@ -8,6 +8,7 @@ recomputed at the accident year, the municipality key with its department
 and the coverage flags of each municipality-month.
 
 What it writes:
+- a cube by year, city and vehicle type for the map, on the same rows;
 - a cube by month, department, vehicle type and age band, without the
   municipality-months flagged for anomalous reporting (the same rows the
   model trains on), for the findings section and its filters;
@@ -32,6 +33,7 @@ sys.path.insert(0, str(ROOT))
 from src import config  # noqa: E402
 
 RAW_CSV = ROOT / "data" / "raw" / "vehiculos_siniestros_runt.csv"
+MANIFEST = ROOT / "data" / "raw" / "manifiesto.json"
 OUT = ROOT / "dashboard" / "data" / "datos.js"
 MODELS = ROOT / "data" / "gold" / "modelos"
 TEMPORAL_TEST = "temporal_2024"
@@ -129,6 +131,14 @@ def main():
     clean["e"] = clean["edad"].map(age_band)
     cube = (clean.groupby(["m", "d", "t", "e"]).agg(n=("con_muertos", "size"), k=("con_muertos", "sum"))
             .reset_index().astype(int).values.tolist())
+    # Map: the same clean rows by year, city and vehicle type. Sub-municipal transit
+    # offices ("CALI - LOS CERROS (VALLE DEL CAUCA)") are added to their municipality.
+    clean["ciudad"] = clean["municipio"].str.replace(r" - .*( \([^()]*\))$", r"\1", regex=True)
+    cities = sorted(clean["ciudad"].unique())
+    city_dept = clean.groupby("ciudad")["d"].first().reindex(cities).astype(int).tolist()
+    clean["c"] = clean["ciudad"].map({v: i for i, v in enumerate(cities)})
+    city_cube = (clean.groupby(["anio", "c", "t"]).agg(n=("con_muertos", "size"), k=("con_muertos", "sum"))
+                 .reset_index().astype(int).values.tolist())
 
     # Reporting audit, on all rows
     source = vehicles["municipio"].map({MEDELLIN: "medellin", BOGOTA: "bogota"}).fillna("resto")
@@ -159,6 +169,11 @@ def main():
     records = mm.pivot(index="municipio", columns="m", values="registros").reindex(index=top, columns=full, fill_value=0)
     reference = mm.groupby("municipio")["mediana_referencia"].first().reindex(top)
 
+    # Edit made to the raw copy itself (scripts/redistribuir_carga_masiva.py), if any
+    raw_edit = None
+    if MANIFEST.exists():
+        raw_edit = json.loads(MANIFEST.read_text(encoding="utf-8")).get("edicion_local")
+
     identical, age_offset = None, None
     if RAW_CSV.exists():
         raw = pd.read_csv(RAW_CSV, dtype=str)
@@ -177,6 +192,7 @@ def main():
             "filas_anomalas": int(vehicles["cobertura_anomala"].sum()),
             "filas_imputadas": int(vehicles["fecha_imputada"].sum()),
             "carga_masiva_medellin": bulk,
+            "edicion_fuente": raw_edit,
             "filas_sin_edad": int(vehicles["edad"].isna().sum()),
             "filas_identicas": identical,
             "desfase_edad_fuente": age_offset,
@@ -192,6 +208,7 @@ def main():
             "edades": [b[2] for b in AGE_BANDS],
         },
         "cubo": cube,
+        "ciudades": {"nombres": cities, "departamento": city_dept, "cubo": city_cube},
         "fuentes": series,
         "cobertura": {"municipios": top, "estado": status.astype(int).values.tolist(),
                       "registros": records.astype(int).values.tolist(),

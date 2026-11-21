@@ -7,7 +7,7 @@
   const G = window.Graficos, C = G.C, n0 = G.n0, nf = G.nf, pct = G.pct;
   const D = window.DATOS_RUNT;
   const $ = (id) => document.getElementById(id);
-  if (!D) { document.querySelector('.portada h1').textContent = 'Faltan los datos del tablero (data/datos.js)'; return; }
+  if (!D) { document.querySelector('.marca h1').textContent = 'Faltan los datos del tablero (data/datos.js)'; return; }
 
   const M = D.dic.meses, DEP = D.dic.departamentos, TIP = D.dic.tipos, CLA = D.dic.clases, EDA = D.dic.edades;
   const CUBO = D.cubo; // [mes, depto, tipo, edad, vehiculos, con muertos], sin los meses con reporte incompleto o atrasado
@@ -38,8 +38,9 @@
   const sum = (xs) => xs.reduce((a, b) => a + b, 0);
   /* Ultimo anio completo y el anterior: la comparacion de la seccion 2 */
   const A2 = (ANIO_PARCIAL || ANIOS[ANIOS.length - 1] + 1) - 1, A1 = A2 - 1;
-  /* Tonos de la comparacion antes / despues: lo que importa en amarillo, el contexto en gris; claro = antes */
-  const TONO = { focoAntes: '#f8dc8a', focoDespues: C.acento, contextoAntes: '#d6d9dd', contextoDespues: '#a3a7ad' };
+  /* Tonos de la comparacion antes / despues: lo que importa en amarillo, el contexto en gris; tenue = antes */
+  const TONO = { focoAntes: '#f9d877', focoDespues: C.acento, contextoAntes: '#dcdee1', contextoDespues: '#aeb2b8' };
+  const GEO = window.GEO_COLOMBIA, CIU = D.ciudades;
 
   const inicial = () => ({ desde: ANIOS[0], hasta: ANIOS[ANIOS.length - 1], depto: -1, tipo: -1 });
   let st = inicial();
@@ -67,37 +68,67 @@
   const K_TOTAL = sum(F.medellin.k) + sum(F.bogota.k) + sum(F.resto.k);
   const porAnio = (serie, a) => sum(serie.filter((_, i) => anioDe(i) === a));
 
-  /* Cada grafica se dibuja una vez y se guarda como se dibujo, para poder igualar
-   * la altura de las dos graficas de una misma fila sin dejar huecos */
+  /* Cada grafica ocupa el alto de su contenedor (su panel en la pagina): se mide antes de
+   * dibujar y se traduce al parametro de alto de cada tipo de grafica. Se guarda como se
+   * dibujo para poder redibujarla al cambiar el tamano de la ventana. */
   const dibujos = {};
-  function dibujar(id, fn, o) { dibujos[id] = { fn, o }; fn($(id), o); }
-  function altoContenido(p) {
-    const top = p.getBoundingClientRect().top;
-    return Math.max(...[...p.children].filter((c) => c.offsetParent !== null).map((c) => c.getBoundingClientRect().bottom - top));
+  function ajustarAlto(el, fn, o) {
+    const H = el.clientHeight;
+    if (!H) return o;
+    o.extra = 0;
+    if (fn === G.barrasV || fn === G.barrasAgrupadas) o.alto = H;
+    else if (fn === G.barrasH) o.fila = Math.max(16, (H - (o.referencia ? 22 : 4) - (o.xTitulo ? 26 : 4) - 4) / Math.max(1, o.items.length));
+    else if (fn === G.barrasDiv) o.fila = Math.max(16, (H - 30 - (o.xTitulo ? 28 : 6)) / Math.max(1, o.items.length));
+    return o;
   }
-  function igualar(a, b) {
-    const ids = [a, b].filter((id) => dibujos[id]);
-    if (ids.length < 2) return;
-    ids.forEach((id) => { const d = dibujos[id]; if (d.o.extra) { d.o.extra = 0; d.fn($(id), d.o); } });
-    const paneles = ids.map((id) => $(id).closest('.panel'));
-    if (Math.abs(paneles[0].getBoundingClientRect().top - paneles[1].getBoundingClientRect().top) > 2) return; // una debajo de la otra
-    const h = paneles.map(altoContenido);
-    const k = h[0] < h[1] ? 0 : 1, falta = Math.abs(h[0] - h[1]);
-    if (falta < 6) return;
-    const d = dibujos[ids[k]]; d.o.extra = falta; d.fn($(ids[k]), d.o);
+  function dibujar(id, fn, o) { dibujos[id] = { fn, o }; fn($(id), ajustarAlto($(id), fn, o)); }
+
+  /* ---------- KPIs: responden a la pregunta de negocio, del mas importante al menos ----------
+   * Principal: que tan mortales son los siniestros (letalidad). Medianos: donde y en que
+   * vehiculos se concentra el riesgo. Menores: el contexto del volumen. */
+  function kpis() {
+    const [n, k] = total(sumar(() => 0, 1, TODO));
+    const cont = $('kpis'), menores = $('kpis-menores');
+    cont.textContent = ''; menores.textContent = '';
+    const prom = k / (n || 1);
+    const kpi = (cls, titulo, valor, unidad, sub) => {
+      const d = el('div', 'kpi' + (cls ? ' ' + cls : ''));
+      const v = el('div', 'kpi-v', valor); if (unidad) v.appendChild(el('small', null, unidad));
+      const s = el('div', 'kpi-s'); s.innerHTML = sub;
+      d.append(el('div', 'kpi-t', titulo), v, s);
+      cont.appendChild(d);
+    };
+    kpi('principal', 'Letalidad', n ? nf(1).format(prom * 100) : '—', '%', `<b>${n0(k)}</b> de ${n0(n)} vehículos en siniestros con víctimas estuvieron en uno con muertos`);
+
+    const pt = sumar((x) => x.t, TIP.length, { periodo: true, depto: true });
+    const tipos = pt.map((v, i) => ({ i, n: v[0], p: v[1] / (v[0] || 1) })).filter((d) => d.n >= 300 && TIP[d.i] !== 'OTROS').sort((a, b) => b.p - a.p);
+    const pa = total(pt), promT = pa[1] / (pa[0] || 1);
+    if (tipos[0]) kpi('', 'Vehículo más letal', tipoTxt(TIP[tipos[0].i]), null, `<b>${pct(tipos[0].p, 1)}</b> · ${nf(1).format(tipos[0].p / (promT || 1))}× el promedio`);
+    else kpi('', 'Vehículo más letal', '—', null, 'Pocos datos');
+
+    const pd = sumar((x) => x.d, DEP.length, { periodo: true, tipo: true });
+    const pdt = total(pd), promD = pdt[1] / (pdt[0] || 1);
+    const deps = pd.map((v, i) => ({ i, n: v[0], p: v[1] / (v[0] || 1) })).filter((d) => d.n >= 1000).sort((a, b) => b.p - a.p);
+    if (deps[0]) kpi('', 'Departamento más letal', depto(DEP[deps[0].i]), null, `<b>${pct(deps[0].p, 1)}</b> · ${nf(1).format(deps[0].p / (promD || 1))}× el promedio`);
+    else kpi('', 'Departamento más letal', '—', null, 'Pocos datos');
+
+    const im = TIP.indexOf('MOTOCICLETA'), kt = sum(pt.map((v) => v[1]));
+    const moto = im >= 0 ? pt[im][1] / (kt || 1) : 0;
+    kpi('', 'Casos mortales con moto', pct(moto, 0), null, `<b>${n0(im >= 0 ? pt[im][1] : 0)}</b> vehículos`);
+
+    // Menores: volumen, municipios con casos, ciudad con mas casos y que logra el modelo
+    const porCiudad = ciudades();
+    const conCasos = porCiudad.filter((c) => c.k > 0);
+    const top = conCasos.sort((a, b) => b.k - a.k)[0];
+    const Mo = D.modelo, c20 = Mo && Mo.cobertura ? Mo.cobertura.find((c) => Math.abs(c.fraccion - 0.2) < 1e-9) : null;
+    [
+      [n0(n), 'vehículos en siniestros'],
+      [n0(conCasos.length), 'municipios con casos mortales'],
+      [top ? muni(top.nombre) : '—', top ? `más casos mortales (${n0(top.k)})` : 'ciudad con más casos'],
+      c20 ? [pct(c20.recall, 0), `casos mortales hallados al revisar el ${pct(c20.fraccion, 0)}`] : [String(M.length), 'meses de datos'],
+    ].forEach(([v, t]) => { const d = el('div', 'kpi-m'); d.append(el('span', 'v', v), el('span', 't', t)); d.title = `${v} ${t}`; menores.appendChild(d); });
   }
 
-  /* ---------- Portada y 1. El problema ---------- */
-  function problema() {
-    $('sub-portada').textContent = `Tablero para secretarías de movilidad y autoridades de tránsito · Fuente: Ministerio de Transporte, RUNT (Ley 2251 de 2022), datos.gov.co · ${mesTxt(M[0])} a ${mesTxt(ultimo)}`;
-    $('t-problema').textContent = `De ${n0(N_TOTAL)} vehículos en siniestros con víctimas, ${n0(K_TOTAL)} estuvieron en uno con muertos: ${de100(K_TOTAL / N_TOTAL)} de cada 100`;
-    pintarCifras($('cifras'), [
-      { v: n0(N_TOTAL), t: 'vehículos en siniestros con víctimas' },
-      { v: n0(K_TOTAL), t: `estuvieron en siniestros con muertos: ${de100(K_TOTAL / N_TOTAL)} de cada 100`, acento: true },
-      { v: n0(D.meta.municipios), t: `municipios de ${D.meta.departamentos} departamentos` },
-      { v: String(M.length), s: 'meses', t: `de ${mesLargo(M[0])} a ${mesLargo(ultimo)}` },
-    ]);
-  }
   function pintarCifras(cont, items) {
     cont.textContent = '';
     items.forEach((c) => {
@@ -122,10 +153,9 @@
       { nombre: 'Resto del país', a: porAnio(resto, A1), b: porAnio(resto, A2), foco: false },
     ];
     const [fm, fb, fr] = fuentes;
-    $('t-caida').textContent = `En ${A2} Medellín reportó ${enPalabras(cambio(fm))} vehículos que en ${A1}, y Bogotá ${enPalabras(cambio(fb))}`;
-    $('sub-caida').textContent = `Vehículos reportados en ${A1} y en ${A2}, según dónde ocurrió el siniestro · el resto del país reportó ${enPalabras(cambio(fr))}`;
-    dibujar('g-caida', G.barrasAgrupadas, {
-      descripcion: `Vehículos reportados en ${A1} y en ${A2}: Medellín, Bogotá y resto del país`, series: [String(A1), String(A2)], etiquetasBarra: true, alto: 280,
+    void fm; void fb; void fr; void enPalabras;
+    dibujar('g-caida', G.barrasAgrupadas, { xTitulo: 'Reportes por fuente y año', yTitulo: 'Vehículos reportados',
+      descripcion: `Vehículos reportados en ${A1} y en ${A2}: Medellín, Bogotá y resto del país`, series: [String(A1), String(A2)], etiquetasBarra: true, alto: 230,
       grupos: fuentes.map((d) => ({ nombre: d.nombre, nota: cambio(d) < 0 ? `bajó ${pct(-cambio(d), 0)}` : `subió ${pct(cambio(d), 0)}`, valores: [d.a, d.b] })),
       colorDe: (gi, k) => (fuentes[gi].foco ? (k ? TONO.focoDespues : TONO.focoAntes) : (k ? TONO.contextoDespues : TONO.contextoAntes)),
       fuerte: (gi, k) => fuentes[gi].foco && k === 1,
@@ -142,20 +172,14 @@
     const iCorte = med.findIndex((v, i) => i > iCm && v < tipico * 0.2);
     const antes = med.slice(0, iCorte > 0 ? iCorte : med.length);
     const promedio = sum(antes) / (antes.length || 1), redondo = Math.round(promedio / 100) * 100;
-    $('t-medellin').textContent = iCorte > 0
-      ? `Medellín reportaba unos ${n0(redondo)} vehículos al mes y desde ${mesLargo(M[iCorte])} casi no reporta`
-      : `Medellín reporta unos ${n0(redondo)} vehículos al mes`;
     const grupos = ANIOS.map((a) => ({ desde: M.findIndex((m) => +m.slice(0, 4) === a), hasta: M.length - 1 - [...M].reverse().findIndex((m) => +m.slice(0, 4) === a), texto: String(a) }));
-    dibujar('g-medellin', G.barrasV, {
-      descripcion: 'Vehículos reportados por mes en Medellín', valores: base, encima: reub, alto: 270, grupos,
-      leyenda: [{ color: C.neutro, texto: 'Enviados en su mes' }].concat(cm ? [{ color: C.acento, texto: `Enviados tarde, todos juntos en ${mesLargo(cm.periodo)}` }] : []),
-      referencia: iCorte > 0 ? { desde: 0, hasta: iCorte - 1, valor: promedio, texto: `unos ${n0(redondo)} al mes` } : null,
-      anotacion: iCorte > 0 ? { i: iCorte, valor: promedio * 0.5, lineas: [mayus(mesLargo(M[iCorte])), `solo ${n0(med[iCorte])} vehículos`] } : null,
+    dibujar('g-medellin', G.barrasV, { xTitulo: 'Mes del siniestro', yTitulo: 'Vehículos reportados',
+      descripcion: 'Vehículos reportados por mes en Medellín', valores: base, encima: reub, alto: 230, grupos,
+      leyenda: [{ color: C.neutro, texto: 'En su mes' }].concat(cm ? [{ color: C.acento, texto: `Tarde (${mesTxt(cm.periodo)})` }] : []),
+      referencia: iCorte > 0 ? { desde: 0, hasta: iCorte - 1, valor: promedio, texto: `~${n0(redondo)}/mes` } : null,
+      anotacion: iCorte > 0 ? { i: iCorte, valor: promedio * 0.5, lineas: [mayus(mesTxt(M[iCorte])), `${n0(med[iCorte])}`] } : null,
       tip: (i) => ({ titulo: mesTxt(M[i]), filas: [{ nombre: 'Enviados en su mes', valor: n0(base[i]) }].concat(reub[i] ? [{ nombre: 'Enviados tarde', valor: n0(reub[i]) }] : [], [{ nombre: 'Total', valor: n0(med[i]) }]) }),
     });
-    $('nota-medellin').textContent = cm
-      ? `En amarillo, ${n0(cm.reubicados)} reportes atrasados que Medellín envió todos juntos en ${mesLargo(cm.periodo)}, mostrados en los meses en que probablemente ocurrieron.`
-      : '';
 
     // 3. El promedio de 2025 engana: todo el pais contra el pais sin Medellin ni Bogota
     const tasa = (series, a) => { const n = sum(series.map((x) => porAnio(x.n, a))); return n ? sum(series.map((x) => porAnio(x.k, a))) / n : 0; };
@@ -164,13 +188,9 @@
       { nombre: 'Sin Medellín ni Bogotá', a: tasa([F.resto], A1), b: tasa([F.resto], A2), foco: true },
     ];
     const igual = (d) => de100(d.a) === de100(d.b);
-    const mov = (d) => (igual(d) ? 'se queda igual' : (d.b > d.a ? 'sube' : 'baja'));
-    $('t-espejismo').textContent = igual(filas[1]) && filas[0].b > filas[0].a && !igual(filas[0])
-      ? `En ${A2} los siniestros no se volvieron más mortales: cambió quién reporta`
-      : `Sin Medellín ni Bogotá, de cada 100 vehículos en siniestros ${de100(filas[1].b)} estuvieron en uno con muertos en ${A2}`;
-    $('sub-espejismo').textContent = `De cada 100 vehículos en siniestros, cuántos estuvieron en uno con muertos · Medellín casi no reporta muertes (${de100(tasa([F.medellin], A1))} de cada 100 en ${A1}): sin ella, el promedio del país sube solo`;
-    dibujar('g-espejismo', G.barrasAgrupadas, {
-      descripcion: `De cada 100 vehículos, cuántos en siniestros con muertos, ${A1} y ${A2}`, series: [String(A1), String(A2)], etiquetasBarra: true, alto: 280, fmt: de100,
+    const mov = (d) => (igual(d) ? 'igual' : (d.b > d.a ? 'sube' : 'baja'));
+    dibujar('g-espejismo', G.barrasAgrupadas, { xTitulo: 'Conjunto de datos y año', yTitulo: 'Letalidad (%)',
+      descripcion: `De cada 100 vehículos, cuántos en siniestros con muertos, ${A1} y ${A2}`, series: [String(A1), String(A2)], etiquetasBarra: true, alto: 230, fmt: de100,
       grupos: filas.map((d) => ({ nombre: d.nombre, nota: mov(d), valores: [d.a, d.b] })),
       colorDe: (gi, k) => (filas[gi].foco ? (k ? TONO.focoDespues : TONO.focoAntes) : (k ? TONO.contextoDespues : TONO.contextoAntes)),
       fuerte: (gi) => filas[gi].foco,
@@ -182,45 +202,38 @@
     const todas = cob.municipios.map((m, i) => ({ clave: i, nombre: muni(m), valor: cob.estado[i].filter((x) => x > 0).length, recientes: cob.estado[i].slice(-ult).filter((x) => x > 0).length }))
       .sort((a, b) => b.valor - a.valor);
     const items = todas.filter((d) => d.valor > 0).slice(0, 12);
-    const [p1, p2] = items, demas = todas.slice(2);
-    const fr6 = sum(demas.map((d) => d.recientes)) / (sum(demas.map((d) => d.valor)) || 1);
-    const cuantos = fr6 >= 0.8 ? 'casi todos' : (fr6 >= 0.5 ? 'la mayoría' : null);
-    $('t-anomalos').textContent = `${p1.nombre} (${p1.valor} meses) y ${p2.nombre} (${p2.valor}) son las ciudades con más meses de reporte incompleto`;
-    $('sub-anomalos').textContent = `Meses, de ${nM}, con menos de la quinta parte de lo normal o más del triple por reportes atrasados${cuantos ? ` · en las demás ciudades, ${cuantos} son los últimos ${ult} meses, que aún no llegan completos` : ''}`;
-    dibujar('g-anomalos', G.barrasH, {
-      descripcion: 'Meses con reporte incompleto o atrasado por ciudad', items, fmt: (v) => `${v}`, xmax: nM, pista: true, fila: 27,
+    const [p1, p2] = items;
+    dibujar('g-anomalos', G.barrasH, { xTitulo: 'Meses con reporte incompleto (de 57)', yTitulo: 'Ciudad',
+      descripcion: 'Meses con reporte incompleto o atrasado por ciudad', items: items.slice(0, 8), fmt: (v) => `${v}`, xmax: nM, pista: true, fila: 25,
       acento: (d) => d === p1 || d === p2, nota: () => `de ${nM}`,
       tip: (d) => [{ nombre: 'Meses con reporte incompleto o atrasado', valor: `${d.valor} de ${nM}` }, { nombre: `De ellos, en los últimos ${ult} meses`, valor: String(d.recientes) }],
     });
 
-    igualar('g-caida', 'g-medellin');
-    igualar('g-espejismo', 'g-anomalos');
   }
 
   /* ---------- 3. Como lo tratamos (fijo) ---------- */
   function tratamiento() {
-    const m = D.meta, desfase = m.desfase_edad_fuente || {}, cm = m.carga_masiva_medellin;
+    const m = D.meta, desfase = m.desfase_edad_fuente || {}, cm = m.carga_masiva_medellin, ed = m.edicion_fuente;
     const anioEdad = Object.keys(desfase).sort()[0];
     pintarCifras($('cifras-tratamiento'), [
-      cm ? { v: n0(cm.reubicados), t: `reportes atrasados que Medellín envió juntos en ${mesLargo(cm.periodo)}: se cuentan en los meses en que probablemente ocurrieron`, acento: true } : null,
-      { v: n0(m.filas_anomalas), t: `vehículos de meses con reporte incompleto o atrasado (${de100(m.filas_anomalas / m.filas)} de cada 100): el modelo no aprende con ellos` },
-      anioEdad ? { v: `${nf(0).format(desfase[anioEdad])} años`, t: `de más tenía la edad del vehículo en la fuente en ${anioEdad}: la recalculamos con el año del siniestro` } : null,
-      m.filas_identicas !== null ? { v: n0(m.filas_identicas), t: 'filas que en la fuente eran idénticas ahora tienen cada una su identificador (id_registro), aunque no se puede saber cuáles iban en el mismo siniestro' } : null,
+      cm ? { v: n0(cm.reubicados), t: `reportes atrasados de Medellín reubicados en su mes`, acento: true } : null,
+      !cm && ed ? { v: n0(ed.reubicados), t: `vehículos de la carga masiva de Medellín (${mesTxt(ed.periodo)}) repartidos en ${mesTxt(ed.desde)}–${mesTxt(ed.hasta)}`, acento: true } : null,
+      { v: n0(m.filas_anomalas), t: 'vehículos de meses incompletos, fuera del modelo' },
+      anioEdad ? { v: `+${nf(0).format(desfase[anioEdad])} años`, t: `error de edad en la fuente (${anioEdad}), recalculada` } : null,
+      m.filas_identicas !== null ? { v: n0(m.filas_identicas), t: 'filas idénticas con identificador propio' } : null,
     ].filter(Boolean));
-    $('cifras-tratamiento').classList.add('tratamiento');
     const etapas = [
-      { t: 'Carga', s: `<em>${n0(m.filas)}</em> vehículos, cada uno con su identificador; se revisan columnas, fechas y gravedad` },
-      { t: 'Limpieza', s: `Textos y marcas unificados; <em>${n0(m.municipios)}</em> municipios con su departamento` },
-      { t: 'Meses incompletos', s: 'Cada mes de cada municipio se compara con su mes típico: se marcan los incompletos y los reportes atrasados', acento: true },
-      { t: 'Edad', s: 'Edad del vehículo = año del siniestro − año del modelo' },
-      { t: 'Prueba', s: 'El modelo se prueba en municipios y en un año que no vio al aprender' },
-      { t: 'Tablero', s: 'Muestra las tablas ya procesadas, no el archivo original' },
+      { t: 'Carga', s: `${n0(m.filas)} vehículos con identificador; se revisan columnas, fechas y gravedad` },
+      { t: 'Limpieza', s: `Textos y marcas unificados; ${n0(m.municipios)} municipios con su departamento` },
+      { t: 'Meses incompletos', s: 'Cada mes de cada municipio se compara con su mes típico', acento: true },
+      { t: 'Edad', s: 'Año del siniestro − año del modelo' },
+      { t: 'Prueba', s: 'Municipios y un año que el modelo no vio' },
+      { t: 'Tablero', s: 'Tablas ya procesadas, no el archivo original' },
     ];
     const car = $('carretera'); car.textContent = '';
     etapas.forEach((e, i) => {
-      const d = el('div', 'etapa' + (e.acento ? ' acento' : ''));
-      const sp = el('span'); sp.innerHTML = e.s;
-      d.append(el('i', null, String(i + 1)), el('strong', null, e.t), sp); car.appendChild(d);
+      const d = el('div', 'etapa' + (e.acento ? ' acento' : '')); d.title = e.s;
+      d.append(el('i', null, String(i + 1)), el('strong', null, e.t)); car.appendChild(d);
     });
   }
 
@@ -242,20 +255,52 @@
     TIP.forEach((t, i) => tip.add(new Option(tipoTxt(t), i)));
     tip.addEventListener('change', () => { st.tipo = +tip.value; render(); });
     $('btn-reset').addEventListener('click', () => { st = inicial(); render(); });
-    if (ANIO_PARCIAL) $('nota-parcial').textContent = `* ${ANIO_PARCIAL} llega hasta ${MES_LARGO[+ultimo.slice(5) - 1]}.`;
+    if (ANIO_PARCIAL) [...document.querySelectorAll('#f-desde option, #f-hasta option')].filter((op) => +op.value === ANIO_PARCIAL).forEach((op) => { op.title = `${ANIO_PARCIAL} llega hasta ${MES_LARGO[+ultimo.slice(5) - 1]}`; });
 
-    const enlaces = [...document.querySelectorAll('.menu a')];
-    const obs = new IntersectionObserver((ents) => ents.forEach((e) => {
-      if (e.isIntersecting) enlaces.forEach((a) => a.classList.toggle('activo', a.getAttribute('href') === '#' + e.target.id));
-    }), { rootMargin: '-30% 0px -65% 0px' });
-    document.querySelectorAll('main .bloque').forEach((b) => obs.observe(b));
+    montarPaginas();
+  }
+
+  /* ---------- Paginacion: una seccion por pantalla ----------
+   * El menu, el paginador (flechas y puntos) y las teclas de flecha cambian de pagina;
+   * el ancla de la URL (#calidad, ...) recuerda la pagina al recargar. */
+  const PAGINAS = [...document.querySelectorAll('.paginas .bloque')];
+  let pagina = 0;
+  function irA(i) {
+    pagina = Math.max(0, Math.min(PAGINAS.length - 1, i));
+    PAGINAS.forEach((p, k) => { p.classList.toggle('activa', k === pagina); p.setAttribute('aria-hidden', String(k !== pagina)); });
+    const menu = PAGINAS[pagina].dataset.menu;
+    document.querySelectorAll('.menu a').forEach((a) => a.classList.toggle('activo', a.getAttribute('href') === '#' + menu));
+    [...$('pag-puntos').children].forEach((b, k) => b.setAttribute('aria-current', String(k === pagina)));
+    $('pag-texto').textContent = `${pagina + 1} / ${PAGINAS.length}`;
+    $('pag-ant').disabled = pagina === 0; $('pag-sig').disabled = pagina === PAGINAS.length - 1;
+    history.replaceState(null, '', '#' + PAGINAS[pagina].id);
+    if (getComputedStyle(PAGINAS[pagina]).position === 'absolute') scrollTo(0, 0); // en modo paginado nunca hay scroll
+    G.ocultarTip();
+  }
+  function montarPaginas() {
+    PAGINAS.forEach((p, k) => {
+      const b = el('button'); b.type = 'button'; b.setAttribute('aria-label', `Página ${k + 1}: ${p.querySelector('h2').textContent || p.querySelector('.paso').textContent}`);
+      b.addEventListener('click', () => irA(k)); $('pag-puntos').appendChild(b);
+    });
+    $('pag-ant').addEventListener('click', () => irA(pagina - 1));
+    $('pag-sig').addEventListener('click', () => irA(pagina + 1));
+    document.querySelectorAll('.menu a').forEach((a) => a.addEventListener('click', (ev) => {
+      ev.preventDefault(); irA(PAGINAS.findIndex((p) => '#' + p.dataset.menu === a.getAttribute('href')));
+    }));
+    addEventListener('keydown', (ev) => {
+      if (ev.target.closest('select, input')) return;
+      if (ev.key === 'ArrowRight' || ev.key === 'PageDown') { ev.preventDefault(); irA(pagina + 1); }
+      if (ev.key === 'ArrowLeft' || ev.key === 'PageUp') { ev.preventDefault(); irA(pagina - 1); }
+    });
+    const ini = PAGINAS.findIndex((p) => '#' + p.id === location.hash);
+    irA(ini >= 0 ? ini : 0);
   }
 
   function pintarControles() {
     $('f-desde').value = st.desde; $('f-hasta').value = st.hasta; $('f-depto').value = st.depto; $('f-tipo').value = st.tipo;
     const chips = $('chips'); chips.textContent = '';
     const hay = st.desde !== ANIOS[0] || st.hasta !== ANIOS[ANIOS.length - 1] || st.depto >= 0 || st.tipo >= 0;
-    chips.appendChild(el('span', null, hay ? 'Filtrando por:' : `Todo el país, todos los años: ${n0(D.meta.filas_limpias)} vehículos, sin los meses con reporte incompleto o atrasado.`));
+    if (hay) chips.appendChild(el('span', null, 'Filtros:'));
     const chip = (txt, quitar) => {
       const b = el('button', 'chip'); b.type = 'button'; b.setAttribute('aria-label', `Quitar filtro ${txt}`);
       b.append(document.createTextNode(txt), Object.assign(el('i'), { textContent: '×' }));
@@ -266,86 +311,68 @@
     if (st.tipo >= 0) chip(tipoTxt(TIP[st.tipo]), () => { st.tipo = -1; });
   }
 
-  /* ---------- Mapa de calor: a donde enviar los controles ----------
-   * Filas: departamentos con mas casos mortales; columnas: tipos de vehiculo.
-   * Dos vistas: cuantos casos (para repartir agentes) y que tan mortal es cada
-   * siniestro (para operativos focalizados). Responde al filtro de anios; el
-   * departamento y el tipo elegidos se marcan con un borde. */
-  let vistaMapa = 'casos';
-  function mapaCalor() {
-    const MIN_CELDA = 200, FILAS = 15;
-    const celdas = DEP.map(() => TIP.map(() => [0, 0]));
-    for (const [m, d, t, e, r, k] of CUBO) {
-      const a = anioDe(m);
+  /* ---------- Ciudades: suma [vehiculos, con muertos] por municipio con los filtros ---------- */
+  function ciudades(usarDepto = true) {
+    const out = CIU.nombres.map((nombre, i) => ({ i, nombre, d: CIU.departamento[i], n: 0, k: 0 }));
+    for (const [a, c, t, r, k] of CIU.cubo) {
       if (a < st.desde || a > st.hasta) continue;
-      celdas[d][t][0] += r; celdas[d][t][1] += k;
+      if (st.tipo >= 0 && t !== st.tipo) continue;
+      if (usarDepto && st.depto >= 0 && CIU.departamento[c] !== st.depto) continue;
+      out[c].n += r; out[c].k += k;
     }
-    const cols = TIP.map((t, j) => j).filter((j) => TIP[j] !== 'OTROS');
-    const totDep = celdas.map((fila) => total(fila));
-    const filas = totDep.map((v, i) => [v[1], i]).sort((a, b) => b[0] - a[0]).slice(0, FILAS).filter(([v]) => v > 0).map(([, i]) => i);
+    return out;
+  }
+
+  /* ---------- Mapa de calor de Colombia: a donde enviar los controles ----------
+   * Departamentos coloreados con la medida elegida; en gris, los que no tienen datos.
+   * Dos vistas: cuantos casos (para repartir agentes) y que tan mortal es cada siniestro
+   * (para operativos focalizados). Responde a los anios y al tipo de vehiculo; el
+   * departamento elegido se marca con un borde y se elige con un clic. */
+  let vistaMapa = 'casos';
+  /* Alto del mapa: el 80 % del area que le deja su panel en la pagina */
+  function altoMapa() {
+    return Math.max(300, Math.round($('g-mapa').clientHeight * 0.8));
+  }
+  function mapaCalor() {
+    const MIN_DEPTO = 500;
     const seg = $('vista-mapa'); seg.textContent = '';
-    [['casos', 'Cuántos casos'], ['tasa', 'Qué tan mortal']].forEach(([v, txt]) => {
+    [['casos', 'Casos mortales'], ['tasa', 'Letalidad']].forEach(([v, txt]) => {
       const b = el('button', null, txt); b.type = 'button'; b.setAttribute('aria-pressed', String(v === vistaMapa));
       b.addEventListener('click', () => { vistaMapa = v; mapaCalor(); }); seg.appendChild(b);
     });
-    if (!filas.length) { G.vacio($('g-mapa')); $('t-mapa').textContent = 'Sin siniestros en este periodo'; $('sub-mapa').textContent = ''; $('escala-mapa').textContent = ''; return; }
-
-    const casos = filas.map((i) => cols.map((j) => celdas[i][j][1]));
-    const tasa = filas.map((i) => cols.map((j) => (celdas[i][j][0] >= MIN_CELDA ? celdas[i][j][1] / celdas[i][j][0] : null)));
     const esCasos = vistaMapa === 'casos';
-    const maxC = Math.max(...casos.flat(), 1), maxT = Math.max(...tasa.flat().filter((v) => v !== null), 1e-9);
-
-    // Titulo: las celdas que mas pesan en la vista elegida, agrupadas por tipo de vehiculo
-    const todas = [];
-    filas.forEach((i, a) => cols.forEach((j, b) => todas.push({ i, j, casos: casos[a][b], tasa: tasa[a][b] })));
-    const describir = (top) => {
-      const porTipo = new Map();
-      top.forEach((c) => { if (!porTipo.has(c.j)) porTipo.set(c.j, []); porTipo.get(c.j).push(depto(DEP[c.i])); });
-      const partes = [...porTipo].map(([j, ds]) => `${plural(TIP[j])} en ${enLista(ds)}`);
-      return partes.length > 1 ? `${partes.slice(0, -1).join(', ')}, y ${partes[partes.length - 1]}` : partes[0];
-    };
-    if (esCasos) {
-      const top = [...todas].sort((x, y) => y.casos - x.casos).slice(0, 3);
-      $('t-mapa').textContent = `Donde más casos mortales hay: ${describir(top)}`;
-      $('sub-mapa').textContent = `Vehículos en siniestros con muertos, por departamento y tipo de vehículo · los ${filas.length} departamentos con más casos · clic en una celda para filtrar las gráficas de abajo`;
-    } else {
-      const top = todas.filter((c) => c.tasa !== null).sort((x, y) => y.tasa - x.tasa).slice(0, 3);
-      $('t-mapa').textContent = top.length ? `Donde cada siniestro es más mortal: ${describir(top)}` : 'Muy pocos datos por celda en este periodo';
-      $('sub-mapa').textContent = `De cada 100 vehículos en siniestros, cuántos estuvieron en uno con muertos · los ${filas.length} departamentos con más casos · clic en una celda para filtrar las gráficas de abajo`;
-    }
-
-    G.matriz($('g-mapa'), {
-      descripcion: 'Mapa de calor por departamento y tipo de vehículo',
-      filas: filas.map((i) => depto(DEP[i])), columnas: cols.map((j) => tipoTxt(TIP[j])), columnasPartidas: cols.map((j) => PARTIDO[tipoTxt(TIP[j])] || null),
-      intensidad: (a, b) => (esCasos ? Math.sqrt(casos[a][b] / maxC) : (tasa[a][b] === null ? null : tasa[a][b] / maxT)),
-      textoDe: (a, b) => (esCasos ? (casos[a][b] ? n0(casos[a][b]) : '') : (tasa[a][b] === null ? '' : de100(tasa[a][b]))),
-      totales: { titulo: esCasos ? 'Total' : 'Todos', textos: filas.map((i) => (esCasos ? n0(totDep[i][1]) : de100(totDep[i][1] / (totDep[i][0] || 1)))) },
-      marcarFila: filas.indexOf(st.depto), marcarColumna: cols.indexOf(st.tipo),
-      tip: (a, b) => {
-        const c = celdas[filas[a]][cols[b]];
-        return { titulo: `${depto(DEP[filas[a]])} · ${tipoTxt(TIP[cols[b]])}`, filas: [{ nombre: 'Vehículos en siniestros', valor: n0(c[0]) }, { nombre: 'En siniestros con muertos', valor: n0(c[1]) }, { nombre: 'De cada 100', valor: c[0] ? de100(c[1] / c[0]) : '—' }] };
-      },
-      onClic: (a, b) => {
-        const d = filas[a], tp = cols[b];
-        if (st.depto === d && st.tipo === tp) { st.depto = -1; st.tipo = -1; } else { st.depto = d; st.tipo = tp; }
-        render();
-      },
+    const pd = sumar((x) => x.d, DEP.length, { periodo: true, tipo: true });
+    const tasa = (v, min) => (v.n >= min ? v.k / v.n : null);
+    const deps = pd.map(([n, k]) => ({ n, k }));
+    const maxKD = Math.max(...deps.map((d) => d.k), 1), maxTD = Math.max(...deps.map((d) => tasa(d, MIN_DEPTO) || 0), 1e-9);
+    const valDep = {};
+    DEP.forEach((nombre, i) => {
+      const d = deps[i];
+      valDep[nombre] = esCasos ? (d.k ? Math.sqrt(d.k / maxKD) : null) : (tasa(d, MIN_DEPTO) === null ? null : tasa(d, MIN_DEPTO) / maxTD);
     });
+    const filas = (n, k) => [{ nombre: 'Vehículos en siniestros', valor: n0(n) }, { nombre: 'Con muertos', valor: n0(k) }, { nombre: 'Letalidad', valor: n ? pct(k / n, 1) : '—' }];
+    const opciones = {
+      descripcion: 'Mapa de calor de Colombia por departamento', geo: GEO,
+      altoMax: altoMapa(), deptos: valDep,
+      marcarDepto: st.depto >= 0 ? DEP[st.depto] : null,
+      tipDepto: (nombre) => { const i = DEP.indexOf(nombre); const d = deps[i] || { n: 0, k: 0 }; return { titulo: depto(nombre), filas: filas(d.n, d.k) }; },
+      onDepto: (nombre) => { const i = DEP.indexOf(nombre); if (i < 0) return; st.depto = st.depto === i ? -1 : i; render(); },
+    };
+    dibujos['g-mapa'] = { fn: G.mapa, o: opciones };
+    G.mapa($('g-mapa'), opciones);
     const esc = $('escala-mapa'); esc.textContent = '';
-    esc.append(el('span', null, esCasos ? 'Pocos casos' : 'Menos mortal'), Object.assign(el('span', 'rampa'), { style: `background:${G.CALOR.gradiente()}` }), el('span', null, esCasos ? 'Muchos casos' : 'Más mortal'));
-    if (!esCasos) { const b = el('span', 'item'); b.append(el('span', 'muestra blanca'), document.createTextNode(`En blanco: menos de ${n0(MIN_CELDA)} vehículos, muy pocos para saberlo`)); esc.appendChild(b); }
-    esc.appendChild(el('span', 'escala-nota', 'Responde al filtro de años; el departamento y el tipo elegidos se marcan con un borde.'));
+    const sinDatos = el('span', 'sin-datos'); sinDatos.append(Object.assign(el('i'), { style: `background:${G.C.tierra}` }), document.createTextNode('Sin datos'));
+    esc.append(el('span', null, esCasos ? 'Pocos casos' : 'Baja letalidad'), Object.assign(el('span', 'rampa'), { style: `background:${G.CALOR.gradiente()}` }), el('span', null, esCasos ? 'Muchos casos' : 'Alta letalidad'), sinDatos);
   }
 
   /* ---------- 4. Hallazgos ---------- */
   function render() {
     pintarControles();
-    mapaCalor();
+    kpis();
     const [n] = total(sumar(() => 0, 1, TODO));
     if (!n) {
-      ['t-tipo', 't-volumen', 't-edad', 't-depto'].forEach((id) => { $(id).textContent = 'Sin siniestros con estos filtros'; });
-      ['sub-tipo', 'sub-volumen', 'sub-edad', 'sub-depto'].forEach((id) => { $(id).textContent = ''; });
       ['g-tipo', 'g-volumen', 'g-edad', 'g-depto'].forEach((id) => { delete dibujos[id]; G.vacio($(id)); });
+      mapaCalor();
       return;
     }
     const iOtros = TIP.indexOf('OTROS');
@@ -357,48 +384,36 @@
     const pa = total(pt), prom = pa[1] / (pa[0] || 1);
     const tipos = ordenar(pt.map((v, i) => ({ clave: i, cod: TIP[i], carga: CLA[i] === 'carga', nombre: tipoTxt(TIP[i]), valor: v[0] ? v[1] / v[0] : 0, n: v[0], k: v[1] }))
       .filter((d) => d.n >= 100), 'valor');
-    if (!tipos.length) { $('t-tipo').textContent = 'Muy pocos vehículos con estos filtros'; $('sub-tipo').textContent = ''; delete dibujos['g-tipo']; G.vacio($('g-tipo')); } else {
-      const carga = tipos.filter((d) => d.carga && d.n >= 300).sort((a, b) => b.valor - a.valor).slice(0, 3);
-      const primero = tipos[0];
-      $('t-tipo').textContent = primero.carga ? 'Los siniestros con vehículos de carga son los más mortales' : `Los siniestros con ${plural(primero.cod)} son los más mortales`;
-      $('sub-tipo').textContent = `De cada 100 vehículos de cada tipo en siniestros, cuántos estuvieron en uno con muertos${carga.length ? ' · en amarillo, los de carga' : ''} · clic en una barra para filtrar`;
-      dibujar('g-tipo', G.barrasH, {
-        descripcion: 'De cada 100 vehículos, cuántos en siniestros con muertos, por tipo de vehículo', items: tipos, fmt: de100,
+    if (!tipos.length) { delete dibujos['g-tipo']; G.vacio($('g-tipo'), 'Muy pocos vehículos'); } else {
+      dibujar('g-tipo', G.barrasH, { xTitulo: 'Letalidad (%)', yTitulo: 'Tipo de vehículo',
+        descripcion: 'De cada 100 vehículos, cuántos en siniestros con muertos, por tipo de vehículo', items: tipos, fmt: de100, fila: 25,
         acento: (d) => d.carga, activo: st.tipo >= 0 ? st.tipo : null,
-        referencia: { valor: prom, texto: `Promedio: ${de100(prom)}` },
+        referencia: { valor: prom, texto: `Prom. ${de100(prom)}` },
         tip: (d) => [{ nombre: 'Vehículos en siniestros', valor: n0(d.n) }, { nombre: 'En siniestros con muertos', valor: n0(d.k) }, { nombre: 'De cada 100', valor: de100(d.valor) }],
         onClic: alClic('tipo'),
       });
     }
 
     // Cuantos casos mortales hay de cada tipo
-    const vt = pt, kTot = sum(vt.map((v) => v[1])) || 1, nTot = sum(vt.map((v) => v[0])) || 1;
+    const vt = pt, kTot = sum(vt.map((v) => v[1])) || 1;
     const vol = ordenar(vt.map((v, i) => ({ clave: i, cod: TIP[i], nombre: tipoTxt(TIP[i]), valor: v[1], n: v[0] })).filter((d) => d.valor > 0), 'valor');
-    const iMoto = TIP.indexOf('MOTOCICLETA'), moto = vol.find((d) => d.cod === 'MOTOCICLETA');
-    const parte = moto ? moto.valor / kTot : 0;
-    $('t-volumen').textContent = moto
-      ? (parte > 0.5 ? `Pero más de la mitad de los casos mortales (${pct(parte, 0)}) involucra una moto` : `Pero el ${pct(parte, 0)} de los casos mortales involucra una moto`)
-      : 'Casos mortales por tipo de vehículo';
-    $('sub-volumen').textContent = `Vehículos en siniestros con muertos, por tipo, y su parte del total${iMoto >= 0 && vt[iMoto][0] ? ` · hay muchas más motos que cualquier otro vehículo: son ${de100(vt[iMoto][0] / nTot)} de cada 100 en siniestros` : ''} · clic para filtrar`;
     if (vol.length) {
-      dibujar('g-volumen', G.barrasH, {
-        descripcion: 'Vehículos en siniestros con muertos por tipo de vehículo', items: vol, fmt: n0,
+      dibujar('g-volumen', G.barrasH, { xTitulo: 'Vehículos en siniestros con muertos', yTitulo: 'Tipo de vehículo',
+        descripcion: 'Vehículos en siniestros con muertos por tipo de vehículo', items: vol, fmt: n0, fila: 25,
         acento: (d) => d.cod === 'MOTOCICLETA', activo: st.tipo >= 0 ? st.tipo : null, nota: (d) => pct(d.valor / kTot, 0),
         tip: (d) => [{ nombre: 'En siniestros con muertos', valor: n0(d.valor) }, { nombre: 'Parte de los casos mortales', valor: pct(d.valor / kTot, 1) }, { nombre: 'Vehículos en siniestros', valor: n0(d.n) }],
         onClic: alClic('tipo'),
       });
-    } else { delete dibujos['g-volumen']; G.vacio($('g-volumen'), 'Sin casos mortales con estos filtros'); }
+    } else { delete dibujos['g-volumen']; G.vacio($('g-volumen'), 'Sin casos mortales'); }
 
     // Edad del vehiculo al momento del siniestro (escala ordinal, en su orden natural)
     const se = sumar((x) => x.e, EDA.length, TODO);
     const pe = se.map((v) => (v[0] ? v[1] / v[0] : 0)), ne = se.map((v) => v[0]);
     const con = pe.filter((_, i) => ne[i] > 0);
-    const iMax = pe.indexOf(Math.max(...con)), iMin = pe.indexOf(Math.min(...con));
-    $('t-edad').textContent = `Los siniestros con vehículos de ${EDA[iMax]} años son los más mortales`;
-    $('sub-edad').textContent = `De cada 100 vehículos en siniestros, cuántos estuvieron en uno con muertos, según la edad del vehículo: ${de100(pe[iMax])} en los de ${EDA[iMax]} años y ${de100(pe[iMin])} en los de ${EDA[iMin]}`;
-    dibujar('g-edad', G.barrasV, {
-      descripcion: 'De cada 100 vehículos, cuántos en siniestros con muertos, por edad del vehículo', cats: EDA, valores: pe, fmt: de100, alto: 250, sinEje: true,
-      acento: (i) => i === iMax, etiquetar: (i) => ne[i] > 0, xTitulo: 'Edad del vehículo, en años',
+    const iMax = pe.indexOf(Math.max(...con));
+    dibujar('g-edad', G.barrasV, { xTitulo: 'Edad del vehículo (años)', yTitulo: 'Letalidad (%)',
+      descripcion: 'De cada 100 vehículos, cuántos en siniestros con muertos, por edad del vehículo', cats: EDA, valores: pe, fmt: de100, alto: 200, sinEje: true,
+      acento: (i) => i === iMax, etiquetar: (i) => ne[i] > 0,
       tip: (i) => ({ titulo: `${EDA[i]} años`, filas: [{ nombre: 'Vehículos en siniestros', valor: n0(ne[i]) }, { nombre: 'De cada 100, con muertos', valor: de100(pe[i]) }] }),
     });
 
@@ -407,26 +422,19 @@
     const dpa = total(pd), promD = dpa[1] / (dpa[0] || 1);
     const MIN_D = 1000;
     const deps = pd.map((v, i) => ({ clave: i, nombre: depto(DEP[i]), valor: v[0] ? v[1] / v[0] : 0, n: v[0], k: v[1] }))
-      .filter((d) => d.n >= MIN_D).sort((a, b) => b.valor - a.valor).slice(0, 10);
+      .filter((d) => d.n >= MIN_D).sort((a, b) => b.valor - a.valor).slice(0, 8);
     if (deps.length) {
-      const veces = deps[0].valor / (promD || 1);
-      $('t-depto').textContent = veces >= 1.5
-        ? `En ${deps[0].nombre} los siniestros son ${nf(0).format(veces)} veces más mortales que el promedio del país`
-        : `En ${deps[0].nombre}, ${de100(deps[0].valor)} de cada 100 vehículos en siniestros estuvieron en uno con muertos`;
-      $('sub-depto').textContent = `De cada 100 vehículos en siniestros, cuántos estuvieron en uno con muertos: ${deps[0].nombre} ${de100(deps[0].valor)}; promedio ${de100(promD)} · los 10 departamentos más altos, con ${n0(MIN_D)} vehículos o más · clic para filtrar`;
-      dibujar('g-depto', G.barrasH, {
-        descripcion: 'De cada 100 vehículos, cuántos en siniestros con muertos, por departamento', items: deps, fmt: de100,
+      dibujar('g-depto', G.barrasH, { xTitulo: 'Letalidad (%)', yTitulo: 'Departamento',
+        descripcion: 'De cada 100 vehículos, cuántos en siniestros con muertos, por departamento', items: deps, fmt: de100, fila: 25,
         acento: (d) => d === deps[0], activo: st.depto >= 0 ? st.depto : null,
-        referencia: { valor: promD, texto: `Promedio: ${de100(promD)}` },
+        referencia: { valor: promD, texto: `Prom. ${de100(promD)}` },
         tip: (d) => [{ nombre: 'Vehículos en siniestros', valor: n0(d.n) }, { nombre: 'En siniestros con muertos', valor: n0(d.k) }, { nombre: 'De cada 100', valor: de100(d.valor) }],
         onClic: alClic('depto'),
       });
     } else {
-      $('t-depto').textContent = 'Muy pocos datos por departamento con estos filtros'; $('sub-depto').textContent = '';
-      delete dibujos['g-depto']; G.vacio($('g-depto'));
+      delete dibujos['g-depto']; G.vacio($('g-depto'), 'Muy pocos datos');
     }
-    igualar('g-tipo', 'g-volumen');
-    igualar('g-edad', 'g-depto');
+    mapaCalor();
   }
 
   /* ---------- 5. Modelo (fijo) ---------- */
@@ -447,46 +455,33 @@
     const cob = Mo.cobertura || [];
     const c20 = cob.find((c) => Math.abs(c.fraccion - 0.2) < 1e-9) || cob[Math.floor(cob.length / 2)];
     if (c20) {
-      $('t-cobertura').textContent = `Revisando ${de100(c20.fraccion)} de cada 100 reportes, el modelo encuentra ${de100(c20.recall)} de cada 100 casos mortales`;
-      $('sub-cobertura').textContent = `De cada 100 casos mortales, cuántos encuentra la autoridad si revisa primero los reportes que el modelo marca como más riesgosos; al azar encontraría ${de100(c20.fraccion)} · probado en municipios que el modelo nunca vio`;
-      dibujar('g-cobertura', G.barrasAgrupadas, {
-        descripcion: 'Casos mortales encontrados al revisar primero los reportes de mayor riesgo, frente al azar', series: ['Al azar', 'Con el modelo'], alto: 290, fmt: de100,
-        grupos: cob.map((c) => ({ nombre: `${de100(c.fraccion)} de cada 100`, valores: [c.fraccion, c.recall] })),
-        colorDe: (gi, k) => (k ? C.acento : C.neutro), xTitulo: 'Reportes revisados primero',
+      dibujar('g-cobertura', G.barrasAgrupadas, { xTitulo: 'Reportes revisados primero (% del total)', yTitulo: 'Casos mortales hallados (%)',
+        descripcion: 'Casos mortales encontrados al revisar primero los reportes de mayor riesgo, frente al azar', series: ['Al azar', 'Con el modelo'], alto: 230, fmt: (v) => pct(v, 0),
+        grupos: cob.map((c) => ({ nombre: `Revisando ${pct(c.fraccion, 0)}`, valores: [c.fraccion, c.recall] })),
+        colorDe: (gi, k) => (k ? C.acento : C.neutro),
         tip: (gr, k) => [{ nombre: k ? 'Con el modelo' : 'Al azar', valor: `${de100(gr.valores[k])} de cada 100 casos mortales` }],
       });
     }
 
     // 2. Que modelo: calificacion de cada uno en la prueba con 2024, junto a no usar modelo
-    $('t-modelos').textContent = `El mejor modelo, ${mejor.nombre.toLowerCase()}, ordena el riesgo ${nf(1).format(mejor.valor / prev)} veces mejor que el azar`;
-    dibujar('g-modelos', G.barrasH, {
-      descripcion: 'Calificación PR-AUC de cada modelo en la prueba con 2024', items, fmt: (v) => nf(3).format(v), fila: 38,
+    dibujar('g-modelos', G.barrasH, { xTitulo: 'PR-AUC (de 0 a 1, más alto es mejor)', yTitulo: 'Modelo',
+      descripcion: 'Calificación PR-AUC de cada modelo en la prueba con 2024', items, fmt: (v) => nf(3).format(v), fila: 38, extra: 36,
       acento: (d) => d === mejor, colorDe: (d) => (d === mejor ? C.acento : (d.clave === 'prevalencia' ? C.neutroClaro : C.neutro)),
       tip: (d) => [{ nombre: 'Calificación (PR-AUC)', valor: nf(3).format(d.r.pr_auc) }].concat(d.clave === 'prevalencia' ? [] : [
         { nombre: 'Casos mortales que detecta', valor: `${de100(d.r.recall)} de cada 100` }, { nombre: 'Aciertos entre sus alertas', valor: `${de100(d.r.precision)} de cada 100` }]),
     });
-    $('nota-modelos').textContent = sen.todos && sen.sin_medellin && sen.solo_medellin
-      ? `Gradient boosting combina cientos de árboles de decisión pequeños; la regresión logística es el modelo simple de referencia. En municipios que el modelo nunca vio su calificación es ${nf(2).format(sen.todos.pr_auc)}; sin Medellín sube a ${nf(2).format(sen.sin_medellin.pr_auc)}, porque allí casi no se reportan muertes (${de100(sen.solo_medellin.prevalencia)} de cada 100).`
-      : '';
+    void sen;
 
     // 3. Municipios con mas (o menos) casos mortales de los que el modelo espera
     const L = Mo.letalidad.map((d) => ({ ...d, nombre: muni(d.municipio), valor: d.diferencia })).sort((a, b) => b.valor - a.valor);
-    const alto = L.length ? L.reduce((a, b) => (b.razon > a.razon ? b : a), L[0]) : null;
-    $('t-letalidad').textContent = alto
-      ? `${muni(alto.municipio)} tiene ${nf(1).format(alto.razon)} veces más casos mortales de los esperados: es el primer municipio para revisar`
-      : 'Sin municipios con datos suficientes';
-    $('sub-letalidad').textContent = `De cada 100 vehículos en siniestros, cuántos más (o menos) estuvieron en uno con muertos de lo que el modelo esperaba por sus vehículos y su contexto · los ${L.length} municipios más alejados de lo esperado, con ${n0(Mo.letalidad_min_registros)} vehículos o más`;
     const conSigno = (v) => `${v >= 0 ? '+' : '−'}${de100(Math.abs(v))}`;
-    dibujar('g-letalidad', G.barrasDiv, {
-      descripcion: 'Casos mortales reales menos esperados por municipio, de cada 100 vehículos', items: L,
-      izquierda: '← menos de los esperados', derecha: 'más de los esperados →', fmt: conSigno,
-      tituloDetalle: 'Real frente a esperado', detalle: (d) => `${de100(d.observada)} frente a ${de100(d.esperada)}`,
+    dibujar('g-letalidad', G.barrasDiv, { xTitulo: 'Casos mortales reales − esperados (de cada 100 vehículos)', yTitulo: 'Municipio',
+      descripcion: 'Casos mortales reales menos esperados por municipio, de cada 100 vehículos',
+      items: L.slice(0, 10), izquierda: '← menos', derecha: 'más →', fmt: conSigno, fila: 23,
       tip: (d) => [{ nombre: 'Real, de cada 100', valor: de100(d.observada) }, { nombre: 'Esperado, de cada 100', valor: de100(d.esperada) },
         { nombre: 'Diferencia', valor: conSigno(d.diferencia) }, { nombre: 'Vehículos en siniestros', valor: n0(d.registros) }],
     });
-    $('nota-grupos').textContent = 'A la derecha (amarillo), municipios con más muertes de las que explican sus vehículos y su contexto: hay riesgos que revisar en la vía. A la izquierda, menos de las esperadas: puede ser menor riesgo o que no se reportan todas las muertes, y conviene verificarlo con la autoridad local.';
 
-    igualar('g-cobertura', 'g-modelos');
   }
 
   /* ---------- 6. Que hacer (fijo) ---------- */
@@ -494,35 +489,31 @@
     const pt = sumar((x) => x.t, TIP.length, {}), [n, k] = total(pt);
     const carga = pt.map((v, i) => ({ cod: TIP[i], carga: CLA[i] === 'carga', p: v[1] / (v[0] || 1), n: v[0] })).filter((d) => d.carga && d.n >= 1000).sort((a, b) => b.p - a.p);
     const im = TIP.indexOf('MOTOCICLETA'), moto = pt[im] || [0, 0];
-    const cm = D.meta.carga_masiva_medellin;
     const Mo = D.modelo;
     const mejor = Mo ? Mo.metricas.filter((r) => r.modelo !== 'prevalencia').sort((a, b) => b.pr_auc - a.pr_auc)[0] : null;
     const prev = Mo ? (Mo.metricas.find((r) => r.modelo === 'prevalencia') || {}).pr_auc : null;
     const alto = Mo && Mo.letalidad.length ? Mo.letalidad.reduce((a, b) => (b.razon > a.razon ? b : a)) : null;
     const lista = $('lista-conclusiones'); lista.textContent = '';
     [
-      carga.length ? [`Priorizar controles y revisiones técnico-mecánicas en vehículos de carga: de cada 100 ${plural(carga[0].cod)} en siniestros, ${de100(carga[0].p)} terminan en uno con muertos${carga.length > 1 ? ` (${enLista(carga.slice(1).map((d) => `${plural(d.cod)} ${de100(d.p)}`))})` : ''}, frente a ${de100(k / n)} en promedio.`, 'Es una asociación: la gravedad es del siniestro, no del vehículo; un camión queda «con muertos» aunque muera el motociclista.'] : null,
-      [`Mantener las campañas para motociclistas: están en el ${pct(moto[1] / (k || 1), 0)} de los casos mortales.`, `Son ${de100(moto[0] / (n || 1))} de cada 100 vehículos en siniestros: aunque un siniestro de moto no sea más mortal que el promedio, son tantas que suman la mayoría de las muertes.`],
-      [`Reportar completo y a tiempo al RUNT: en ${A2} Medellín y Bogotá casi dejaron de reportar${cm ? `, y Medellín envió ${n0(cm.publicados)} reportes juntos en ${mesLargo(cm.periodo)}` : ''}.`, 'Sin ese reporte el promedio del país se distorsiona; la sección 2 sirve para vigilar mes a mes qué tan completo reporta cada municipio.'],
-      mejor ? [`Usar el modelo para decidir qué revisar primero y para revisar municipios con más casos mortales de los esperados${alto ? `, como ${muni(alto.municipio)}` : ''}.`, `Ordena el riesgo ${nf(1).format(mejor.pr_auc / prev)} veces mejor que el azar en la prueba con 2024, pero no alcanza para decidir caso por caso.`] : null,
-    ].filter(Boolean).forEach(([a, b]) => { const li = el('li'), d = el('div'); d.append(document.createTextNode(a), el('span', null, b)); li.appendChild(d); lista.appendChild(li); });
+      carga.length ? [`Priorizar controles a vehículos de carga: ${plural(carga[0].cod)} ${pct(carga[0].p, 1)} de letalidad vs. ${pct(k / n, 1)} promedio.`, 'Es una asociación: la gravedad es del siniestro, no del vehículo; un camión queda «con muertos» aunque muera el motociclista.'] : null,
+      [`Mantener campañas para motociclistas: ${pct(moto[1] / (k || 1), 0)} de los casos mortales.`, `Son ${de100(moto[0] / (n || 1))} de cada 100 vehículos en siniestros: aunque un siniestro de moto no sea más mortal que el promedio, son tantas que suman la mayoría de las muertes.`],
+      [`Exigir reporte completo y a tiempo al RUNT: Medellín y Bogotá casi dejaron de reportar en ${A2}.`, 'Sin ese reporte el promedio del país se distorsiona; la sección 2 sirve para vigilar mes a mes qué tan completo reporta cada municipio.'],
+      mejor ? [`Revisar primero lo que marca el modelo y municipios sobre lo esperado${alto ? `, como ${muni(alto.municipio)}` : ''}.`, `Ordena el riesgo ${nf(1).format(mejor.pr_auc / prev)} veces mejor que el azar en la prueba con 2024, pero no alcanza para decidir caso por caso.`] : null,
+    ].filter(Boolean).forEach(([a, b]) => { const li = el('li'), d = el('div', null, a); li.title = b; li.appendChild(d); lista.appendChild(li); });
     const m = D.meta;
     $('pie').textContent = '';
-    $('pie').appendChild(el('p', null, `Fuente: ${m.fuente}. Licencia CC BY-SA 4.0.`));
-    $('fuente').innerHTML = '';
-    $('fuente').append(el('b', null, 'Fuente:'), document.createTextNode(` Ministerio de Transporte, RUNT · ${n0(m.filas)} vehículos · datos de ${mesTxt(M[0])} a ${mesTxt(ultimo)}`));
+    $('pie').appendChild(el('p', null, `Fuente: ${m.fuente} · ${mesTxt(M[0])} a ${mesTxt(ultimo)}${m.edicion_fuente ? ` · Editado: ${m.edicion_fuente.descripcion}` : ''} · Mapa: ${GEO.fuente} · CC BY-SA 4.0`));
   }
 
-  problema();
   calidad();
   tratamiento();
   montarControles();
   render();
   modelo();
   conclusiones();
-  let espera, anchoPrevio = innerWidth;
+  let espera, anchoPrevio = innerWidth, altoPrevio = innerHeight;
   addEventListener('resize', () => {
     clearTimeout(espera);
-    espera = setTimeout(() => { if (innerWidth === anchoPrevio) return; anchoPrevio = innerWidth; calidad(); render(); modelo(); }, 150);
+    espera = setTimeout(() => { if (innerWidth === anchoPrevio && innerHeight === altoPrevio) return; anchoPrevio = innerWidth; altoPrevio = innerHeight; calidad(); render(); modelo(); }, 150);
   });
 })();

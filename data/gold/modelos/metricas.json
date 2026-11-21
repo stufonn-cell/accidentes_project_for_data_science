@@ -1,6 +1,6 @@
 {
   "objetivo": "con_muertos",
-  "version": "runt-2026-11-20-deb82db1",
+  "version": "runt-2026-11-21-68160f32",
   "particion": {
     "seleccion": "GroupKFold k=5 por municipio sobre 2022-2024 sin meses con cobertura anomala",
     "entrenamiento": "2022-2023 sin meses con cobertura anomala",
@@ -175,8 +175,8 @@
     },
     {
       "filas_entrenamiento": 26032,
-      "pr_auc_entrenamiento": 0.278,
-      "pr_auc_validacion": 0.1475
+      "pr_auc_entrenamiento": 0.2838,
+      "pr_auc_validacion": 0.1467
     },
     {
       "filas_entrenamiento": 86776,
@@ -364,13 +364,13 @@
     }
   ],
   "validacion_agrupada_fuera_de_pliegue_mejor": {
-    "roc_auc": 0.713,
-    "average_precision": 0.1814,
+    "roc_auc": 0.7123,
+    "average_precision": 0.1809,
     "brier": 0.042,
     "precision": 0.2113,
     "recall": 0.4861,
-    "verdaderos_negativos": 282853,
-    "falsos_positivos": 28503,
+    "verdaderos_negativos": 282851,
+    "falsos_positivos": 28505,
     "falsos_negativos": 8075,
     "verdaderos_positivos": 7637,
     "tasa_alerta": 0.1105,
@@ -381,31 +381,31 @@
   "cobertura_cambiada_2025_2026": {
     "todas_las_filas": {
       "roc_auc": 0.8042,
-      "average_precision": 0.2711,
+      "average_precision": 0.2709,
       "brier": 0.0639,
-      "precision": 0.2066,
-      "recall": 0.712,
-      "verdaderos_negativos": 72076,
-      "falsos_positivos": 21813,
-      "falsos_negativos": 2298,
-      "verdaderos_positivos": 5681,
-      "tasa_alerta": 0.2699,
-      "costo_esperado_por_registro": 0.4397,
+      "precision": 0.2064,
+      "recall": 0.7081,
+      "verdaderos_negativos": 72164,
+      "falsos_positivos": 21725,
+      "falsos_negativos": 2329,
+      "verdaderos_positivos": 5650,
+      "tasa_alerta": 0.2687,
+      "costo_esperado_por_registro": 0.4419,
       "filas": 101868,
       "prevalencia": 0.0783
     },
     "sin_cobertura_anomala": {
       "roc_auc": 0.8061,
-      "average_precision": 0.2726,
-      "brier": 0.0632,
-      "precision": 0.2079,
-      "recall": 0.7108,
-      "verdaderos_negativos": 70860,
-      "falsos_positivos": 20926,
-      "falsos_negativos": 2235,
-      "verdaderos_positivos": 5494,
-      "tasa_alerta": 0.2655,
-      "costo_esperado_por_registro": 0.4349,
+      "average_precision": 0.2722,
+      "brier": 0.0633,
+      "precision": 0.2077,
+      "recall": 0.7068,
+      "verdaderos_negativos": 70946,
+      "falsos_positivos": 20840,
+      "falsos_negativos": 2266,
+      "verdaderos_positivos": 5463,
+      "tasa_alerta": 0.2643,
+      "costo_esperado_por_registro": 0.4371,
       "filas": 99515,
       "prevalencia": 0.0777
     },
@@ -425,12 +425,12 @@
     "silueta": {
       "kmeans": {
         "2": 0.3125,
-        "3": 0.2546,
-        "4": 0.2472,
-        "5": 0.2439,
+        "3": 0.2547,
+        "4": 0.2407,
+        "5": 0.2433,
         "6": 0.2293,
-        "7": 0.2223,
-        "8": 0.2327
+        "7": 0.2215,
+        "8": 0.2102
       },
       "jerarquico_ward": {
         "2": 0.3192,
@@ -451,16 +451,6 @@
     "perfil_grupos": [
       {
         "grupo": 1,
-        "municipios": 97.0,
-        "registros": 28156.0,
-        "prop_con_muertos": 0.241,
-        "edad_promedio": 9.4681,
-        "prop_motos": 0.4948,
-        "prop_carga": 0.1666,
-        "prop_autoridad_nacional": 0.7006
-      },
-      {
-        "grupo": 2,
         "municipios": 113.0,
         "registros": 415519.0,
         "prop_con_muertos": 0.0814,
@@ -468,22 +458,32 @@
         "prop_motos": 0.6154,
         "prop_carga": 0.0616,
         "prop_autoridad_nacional": 0.1912
+      },
+      {
+        "grupo": 2,
+        "municipios": 97.0,
+        "registros": 28156.0,
+        "prop_con_muertos": 0.241,
+        "edad_promedio": 9.4681,
+        "prop_motos": 0.4948,
+        "prop_carga": 0.1666,
+        "prop_autoridad_nacional": 0.7006
       }
     ],
     "ejemplos_por_grupo": {
       "1": [
-        "CAJICA (CUNDINAMARCA)",
-        "CHIGORODO (ANTIOQUIA)",
-        "BUENAVENTURA (VALLE DEL CAUCA)",
-        "GARZON (HUILA)",
-        "RIOHACHA (LA GUAJIRA)"
-      ],
-      "2": [
         "MEDELLIN (ANTIOQUIA)",
         "BOGOTA (BOGOTA D.C.)",
         "CALI (VALLE DEL CAUCA)",
         "BARRANQUILLA (ATLANTICO)",
         "BELLO (ANTIOQUIA)"
+      ],
+      "2": [
+        "CAJICA (CUNDINAMARCA)",
+        "CHIGORODO (ANTIOQUIA)",
+        "BUENAVENTURA (VALLE DEL CAUCA)",
+        "GARZON (HUILA)",
+        "RIOHACHA (LA GUAJIRA)"
       ]
     }
   },
@@ -507,6 +507,23 @@
     },
     {
       "grupo": 1,
+      "municipios": 113,
+      "roc_auc": 0.6561,
+      "average_precision": 0.1248,
+      "brier": 0.0319,
+      "precision": 0.1776,
+      "recall": 0.3467,
+      "verdaderos_negativos": 277755,
+      "falsos_positivos": 17020,
+      "falsos_negativos": 6924,
+      "verdaderos_positivos": 3675,
+      "tasa_alerta": 0.0678,
+      "costo_esperado_por_registro": 0.2825,
+      "filas": 305374,
+      "prevalencia": 0.0347
+    },
+    {
+      "grupo": 2,
       "municipios": 96,
       "roc_auc": 0.5802,
       "average_precision": 0.2859,
@@ -521,23 +538,6 @@
       "costo_esperado_por_registro": 1.067,
       "filas": 17664,
       "prevalencia": 0.2278
-    },
-    {
-      "grupo": 2,
-      "municipios": 113,
-      "roc_auc": 0.657,
-      "average_precision": 0.1253,
-      "brier": 0.0319,
-      "precision": 0.1776,
-      "recall": 0.3467,
-      "verdaderos_negativos": 277757,
-      "falsos_positivos": 17018,
-      "falsos_negativos": 6924,
-      "verdaderos_positivos": 3675,
-      "tasa_alerta": 0.0678,
-      "costo_esperado_por_registro": 0.2825,
-      "filas": 305374,
-      "prevalencia": 0.0347
     }
   ],
   "casos": [
@@ -550,7 +550,7 @@
       "modelo": 2012,
       "edad": 12,
       "mes": 12,
-      "probabilidad": 0.4243,
+      "probabilidad": 0.4236,
       "alerta": 1
     },
     {
@@ -562,7 +562,7 @@
       "modelo": 2023,
       "edad": 1,
       "mes": 6,
-      "probabilidad": 0.0055,
+      "probabilidad": 0.0051,
       "alerta": 0
     },
     {
@@ -574,7 +574,7 @@
       "modelo": 2023,
       "edad": 1,
       "mes": 6,
-      "probabilidad": 0.1933,
+      "probabilidad": 0.1847,
       "alerta": 1
     },
     {
@@ -586,7 +586,7 @@
       "modelo": 2015,
       "edad": 9,
       "mes": 3,
-      "probabilidad": 0.0194,
+      "probabilidad": 0.019,
       "alerta": 0
     },
     {
@@ -598,7 +598,7 @@
       "modelo": 2010,
       "edad": 14,
       "mes": 1,
-      "probabilidad": 0.1852,
+      "probabilidad": 0.1814,
       "alerta": 1
     }
   ]
