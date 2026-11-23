@@ -13,6 +13,9 @@ seccond-brains/
 build/
 infra/.env
 infra/.serverless/
+infra/api/.serverless/
 # Local tools and copies that do not belong in the repo
 .claude/
 entregas/
+# Synthetic volume table: rebuilt by python -m src.expand
+data/gold/vehiculos_expandido/

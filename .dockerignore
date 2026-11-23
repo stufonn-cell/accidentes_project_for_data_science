@@ -1,9 +1,13 @@
-# The API image only needs the code of api/ and src/ and its requirements.
-# Everything else stays out: data, dashboards, credentials and git history.
+# The API image only needs the code of api/ and src/, its requirements and
+# the web dashboard it serves. Everything else stays out: data, credentials
+# and git history.
 *
 !requirements-api.txt
 !api/
 !src/
+!dashboard/
+# Offline copy of the dashboard data: the API serves the live one at /tablero
+dashboard/data/datos.js
 **/__pycache__/
 **/*.pyc
 api/Dockerfile*

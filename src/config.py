@@ -26,12 +26,16 @@ RAW_CSV = f"{DATA_DIR}/raw/{RAW_FILE}"
 RAW_MANIFEST = f"{DATA_DIR}/raw/manifiesto.json"
 BRONZE = f"{DATA_DIR}/bronze/vehiculos"
 SILVER = f"{DATA_DIR}/silver/vehiculos"
-EXPANDED = f"{DATA_DIR}/expandido/vehiculos"
 # Gold: one folder per table so Athena maps each folder to one table
 GOLD_VEHICULOS = f"{DATA_DIR}/gold/vehiculos"
 GOLD_MUNICIPIO_MES = f"{DATA_DIR}/gold/municipio_mes"
 GOLD_MUNICIPIO = f"{DATA_DIR}/gold/municipio"
 GOLD_MODELOS = f"{DATA_DIR}/gold/modelos"
+# Synthetic volume test (src/expand.py): real rows plus shifted copies, never used by the model
+GOLD_EXPANDIDO = f"{DATA_DIR}/gold/vehiculos_expandido"
+# Data of the web dashboard, one JSON document (src/tablero.py); not a catalog table
+GOLD_TABLERO = f"{DATA_DIR}/gold/tablero"
+TABLERO_JSON = f"{GOLD_TABLERO}/datos.json"
 
 IS_CLOUD = "://" in DATA_DIR
 
@@ -93,6 +97,17 @@ def write_parquet(df, path, partition_cols=None):
     # Athena reads timestamps in milliseconds; pandas would write nanoseconds
     df.to_parquet(inner, filesystem=filesystem, index=False, partition_cols=partition_cols,
                   coerce_timestamps="ms", allow_truncated_timestamps=True)
+
+
+def exists(path):
+    """True when the file or folder exists (on S3, a folder exists if it holds objects)."""
+    filesystem, inner = _filesystem(path)
+    if filesystem is None:
+        return os.path.exists(path)
+    info = filesystem.get_file_info(inner)
+    if info.type != pafs.FileType.NotFound:
+        return True
+    return bool(filesystem.get_file_info(pafs.FileSelector(inner, allow_not_found=True)))
 
 
 def read_bytes(path):

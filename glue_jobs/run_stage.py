@@ -6,7 +6,7 @@ uses this same script. The --stage argument picks the stage and
 --extra-py-files.
 
 All stages run the same pandas modules of src that run locally
-(src.bronze, src.silver, src.gold, src.models), on the Glue driver: the
+(src.bronze, src.silver, src.gold, src.models, src.tablero, src.expand), on the Glue driver: the
 RUNT table has about 450 thousand rows and fits in memory. Distributed
 processing with Spark DataFrames is a pending item.
 """
@@ -20,7 +20,7 @@ from awsglue.job import Job
 from awsglue.utils import getResolvedOptions
 from pyspark import SparkContext
 
-STAGES = {"bronze", "silver", "gold", "models"}
+STAGES = {"bronze", "silver", "gold", "models", "tablero", "expand"}
 
 args = getResolvedOptions(sys.argv, ["JOB_NAME", "stage", "data_dir"])
 stage = args["stage"]

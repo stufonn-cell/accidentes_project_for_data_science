@@ -1,13 +1,12 @@
 /* Tablero para secretarias de movilidad y autoridades de transito: gravedad de
  * los siniestros viales en Colombia (RUNT, Ley 2251 de 2022).
  * Orden de lectura = orden de la exposicion. Solo la seccion 4 responde a los filtros.
- * Toda cifra que aparece en pantalla se calcula aqui a partir de data/datos.js. */
-(function () {
+ * Toda cifra que aparece en pantalla se calcula aqui a partir de los datos que
+ * entrega js/cargar.js: GET /tablero de la API, o data/datos.js sin API. */
+window.iniciarTablero = function (D) {
   'use strict';
   const G = window.Graficos, C = G.C, n0 = G.n0, nf = G.nf, pct = G.pct;
-  const D = window.DATOS_RUNT;
   const $ = (id) => document.getElementById(id);
-  if (!D) { document.querySelector('.marca h1').textContent = 'Faltan los datos del tablero (data/datos.js)'; return; }
 
   const M = D.dic.meses, DEP = D.dic.departamentos, TIP = D.dic.tipos, CLA = D.dic.clases, EDA = D.dic.edades;
   const CUBO = D.cubo; // [mes, depto, tipo, edad, vehiculos, con muertos], sin los meses con reporte incompleto o atrasado
@@ -516,4 +515,4 @@
     clearTimeout(espera);
     espera = setTimeout(() => { if (innerWidth === anchoPrevio && innerHeight === altoPrevio) return; anchoPrevio = innerWidth; altoPrevio = innerHeight; calidad(); render(); modelo(); }, 150);
   });
-})();
+};

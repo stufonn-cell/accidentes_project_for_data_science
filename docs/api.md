@@ -79,6 +79,14 @@ Decisiones principales:
 | `POST /predict` | Probabilidad de muertos para un vehiculo |
 | `POST /predict/batch` | Lo mismo para una lista de hasta 100 vehiculos |
 | `GET /docs` | Documentacion interactiva (OpenAPI), generada por FastAPI |
+| `GET /tablero` | Datos del tablero web: el JSON que deja el pipeline en `gold/tablero/datos.json`. Publico, sin llave |
+| `GET /` | El tablero web (archivos de `dashboard/`) |
+
+`/tablero` se sirve tal como esta guardado, comprimido con gzip si el
+navegador lo acepta, y se guarda en memoria `TABLERO_TTL_SECONDS` segundos
+(300 por defecto): una corrida nueva del pipeline aparece a los pocos
+minutos. Si S3 falla despues de la primera lectura, sigue sirviendo la copia
+en memoria. Sin datos responde 503.
 
 Campos de un vehiculo:
 
@@ -106,8 +114,8 @@ en `data/gold/modelos`:
 python -m uvicorn api.main:app --host 127.0.0.1 --port 8020
 ```
 
-La documentacion interactiva queda en http://127.0.0.1:8020/docs y solo
-responde en este computador.
+El tablero queda en http://127.0.0.1:8020/ y la documentacion interactiva en
+http://127.0.0.1:8020/docs. Solo responden en este computador.
 
 Variables de entorno:
 
@@ -116,53 +124,56 @@ Variables de entorno:
 | `DATA_DIR` | Donde esta el lago. Por defecto `data`. En AWS, `s3://<bucket>` |
 | `API_KEY` | Si se define, `/predict` y `/predict/batch` exigen el encabezado `X-API-Key` |
 | `MODEL_VERSION` | Si se define, sirve esa version del registro en vez del ultimo modelo |
+| `TABLERO_TTL_SECONDS` | Cada cuanto se vuelven a leer los datos del tablero. Por defecto 300 |
+| `DASHBOARD_DIR` | Carpeta del tablero web. Por defecto `dashboard/` del repositorio |
 
 ### Ejemplo real
 
-Peticiones hechas con curl el 2026-11-20 contra el servicio corriendo en
-local con el modelo del pipeline (gradient boosting calibrado). La salida
-completa queda en `build/api_local_exchange.txt`.
+Peticiones hechas con curl el 2026-11-21 contra la API desplegada en AWS
+(`https://xl60pqw9ll.execute-api.us-east-1.amazonaws.com`), con el modelo `runt-2026-11-21-68160f32` leido de S3. En local
+es igual cambiando la URL por `http://127.0.0.1:8020`; sin `API_KEY` no hace
+falta el encabezado `X-API-Key`.
 
 Estado:
 
 ```bash
-curl -s http://127.0.0.1:8020/health
+curl -s $URL/health
 ```
 
 ```json
-{"estado":"ok","modelo":"gradient_boosting","version":"runt-2026-11-20-deb82db1","sha256":"c078e57d464bb9ce2dc09d1bdf7614f2148625aad9c3c5ec97986499eb230663","objetivo":"con_muertos","umbral_decision":0.0909,"variables":{"categoricas":["tipo_grupo","marca_grupo","departamento","autoridad"],"numericas":["modelo","edad","mes"]},"origen":"data/gold/modelos/gradient_boosting.joblib","requiere_api_key":false}
+{"estado":"ok","modelo":"gradient_boosting","version":"runt-2026-11-21-68160f32","sha256":"cdcec432673f756713c2c90f560b4c5be38bf57caa37d29990870cdee3f490ff","objetivo":"con_muertos","umbral_decision":0.0909,"variables":{"categoricas":["tipo_grupo","marca_grupo","departamento","autoridad"],"numericas":["modelo","edad","mes"]},"origen":"s3://accidentes-runt-lake-298363283541/gold/modelos/gradient_boosting.joblib","requiere_api_key":true}
 ```
 
 Una moto nueva en una via nacional (la reporta la Direccion de Transito y
 Transporte de la Policia): alerta.
 
 ```bash
-curl -s -X POST http://127.0.0.1:8020/predict \
-  -H "Content-Type: application/json" \
+curl -s -X POST $URL/predict \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
   -d '{"tipo":"MOTOCICLETA","marca":"AKT","modelo":2023,"fecha":"06/2024","departamento":"ANTIOQUIA","autoridad":"DIRECCION DE TRANSITO Y TRANSPORTE","identificador":"V-1"}'
 ```
 
 ```json
-{"identificador":"V-1","probabilidad":0.1933,"alerta":true,"entrada_modelo":{"tipo_grupo":"MOTOCICLETA","marca_grupo":"AKT","departamento":"ANTIOQUIA","autoridad":"DIRECCION DE TRANSITO Y TRANSPORTE","modelo":2023.0,"edad":1.0,"mes":6.0},"categorias_agrupadas":[],"categorias_desconocidas":[],"umbral_decision":0.0909,"modelo":"gradient_boosting","version":"runt-2026-11-20-deb82db1"}
+{"identificador":"V-1","probabilidad":0.1847,"alerta":true,"entrada_modelo":{"tipo_grupo":"MOTOCICLETA","marca_grupo":"AKT","departamento":"ANTIOQUIA","autoridad":"DIRECCION DE TRANSITO Y TRANSPORTE","modelo":2023.0,"edad":1.0,"mes":6.0},"categorias_agrupadas":[],"categorias_desconocidas":[],"umbral_decision":0.0909,"modelo":"gradient_boosting","version":"runt-2026-11-21-68160f32"}
 ```
 
 Un tipo y una marca que el modelo no conoce, sin año modelo, con textos en
 minusculas y una autoridad inventada: responde y lo avisa.
 
 ```bash
-curl -s -X POST http://127.0.0.1:8020/predict \
-  -H "Content-Type: application/json" \
+curl -s -X POST $URL/predict \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
   -d '{"tipo":"Patineta electrica","fecha":"03/2024","departamento":"bogota d.c.","autoridad":"Transito inventado"}'
 ```
 
 ```json
-{"identificador":null,"probabilidad":0.0509,"alerta":false,"entrada_modelo":{"tipo_grupo":"OTRO","marca_grupo":"OTRAS","departamento":"BOGOTA D.C.","autoridad":"TRANSITO INVENTADO","modelo":null,"edad":null,"mes":3.0},"categorias_agrupadas":["tipo_grupo","marca_grupo"],"categorias_desconocidas":["autoridad"],"umbral_decision":0.0909,"modelo":"gradient_boosting","version":"runt-2026-11-20-deb82db1"}
+{"identificador":null,"probabilidad":0.0502,"alerta":false,"entrada_modelo":{"tipo_grupo":"OTRO","marca_grupo":"OTRAS","departamento":"BOGOTA D.C.","autoridad":"TRANSITO INVENTADO","modelo":null,"edad":null,"mes":3.0},"categorias_agrupadas":["tipo_grupo","marca_grupo"],"categorias_desconocidas":["autoridad"],"umbral_decision":0.0909,"modelo":"gradient_boosting","version":"runt-2026-11-21-68160f32"}
 ```
 
 Una peticion sin autoridad: 422 con el campo y el motivo.
 
 ```
-HTTP/1.1 422 Unprocessable Content
+HTTP/1.1 422 Unprocessable Entity
 
 {"detail":[{"campo":"autoridad","mensaje":"Field required"}]}
 ```
@@ -170,13 +181,13 @@ HTTP/1.1 422 Unprocessable Content
 Varios vehiculos a la vez (con `fecha` o con `anio` y `mes`):
 
 ```bash
-curl -s -X POST http://127.0.0.1:8020/predict/batch \
-  -H "Content-Type: application/json" \
+curl -s -X POST $URL/predict/batch \
+  -H "Content-Type: application/json" -H "X-API-Key: $API_KEY" \
   -d '{"vehiculos":[{"identificador":"V-1","tipo":"AUTOMOVIL","marca":"CHEVROLET","modelo":2015,"anio":2024,"mes":3,"departamento":"BOGOTA D.C.","autoridad":"SECRETARIA DISTRITAL DE MOVILIDAD DE BOGOTA"},{"identificador":"V-2","tipo":"TRACTOCAMION","marca":"KENWORTH","modelo":2012,"fecha":"12/2024","departamento":"CESAR","autoridad":"DIRECCION DE TRANSITO Y TRANSPORTE"}]}'
 ```
 
 ```json
-{"modelo":"gradient_boosting","version":"runt-2026-11-20-deb82db1","umbral_decision":0.0909,"total":2,"predicciones":[{"identificador":"V-1","probabilidad":0.0194,"alerta":false,"entrada_modelo":{"tipo_grupo":"AUTOMOVIL","marca_grupo":"CHEVROLET","departamento":"BOGOTA D.C.","autoridad":"SECRETARIA DISTRITAL DE MOVILIDAD DE BOGOTA","modelo":2015.0,"edad":9.0,"mes":3.0},"categorias_agrupadas":[],"categorias_desconocidas":[]},{"identificador":"V-2","probabilidad":0.4243,"alerta":true,"entrada_modelo":{"tipo_grupo":"TRACTOCAMION","marca_grupo":"KENWORTH","departamento":"CESAR","autoridad":"DIRECCION DE TRANSITO Y TRANSPORTE","modelo":2012.0,"edad":12.0,"mes":12.0},"categorias_agrupadas":[],"categorias_desconocidas":[]}]}
+{"modelo":"gradient_boosting","version":"runt-2026-11-21-68160f32","umbral_decision":0.0909,"total":2,"predicciones":[{"identificador":"V-1","probabilidad":0.019,"alerta":false,"entrada_modelo":{"tipo_grupo":"AUTOMOVIL","marca_grupo":"CHEVROLET","departamento":"BOGOTA D.C.","autoridad":"SECRETARIA DISTRITAL DE MOVILIDAD DE BOGOTA","modelo":2015.0,"edad":9.0,"mes":3.0},"categorias_agrupadas":[],"categorias_desconocidas":[]},{"identificador":"V-2","probabilidad":0.4236,"alerta":true,"entrada_modelo":{"tipo_grupo":"TRACTOCAMION","marca_grupo":"KENWORTH","departamento":"CESAR","autoridad":"DIRECCION DE TRANSITO Y TRANSPORTE","modelo":2012.0,"edad":12.0,"mes":12.0},"categorias_agrupadas":[],"categorias_desconocidas":[]}]}
 ```
 
 Estas probabilidades son las de los `casos` de `metricas.json`, que las
@@ -195,13 +206,15 @@ docker build -f api/Dockerfile -t accidentes-api .
 docker run --rm -p 127.0.0.1:8021:8080 -v "$PWD/data:/data:ro" -e API_KEY=una-clave accidentes-api
 ```
 
-La imagen solo lleva el codigo de `api/` y `src/` (ver `.dockerignore`). El
+La imagen solo lleva el codigo de `api/` y `src/` y el tablero de
+`dashboard/` sin la copia `datos.js` (ver `.dockerignore`). El
 modelo no va dentro de la imagen: se monta la carpeta de datos en solo
 lectura, o se pasa `-e DATA_DIR=s3://<bucket>` con credenciales de AWS. El
 servicio corre con un usuario sin privilegios.
 
-La imagen de Docker no se ha vuelto a construir con el modelo del RUNT; el
-codigo es el mismo que se probo en local.
+Esta imagen (`api/Dockerfile`, con uvicorn) no se ha vuelto a construir con
+el modelo del RUNT. La de AWS es otra, `api/Dockerfile.lambda`, y esa si se
+construyo y esta desplegada.
 
 ## Pruebas
 
@@ -209,8 +222,13 @@ codigo es el mismo que se probo en local.
 pip install -r api/requirements-test.txt
 mkdir -p build/api_fixture/gold
 cp -r data/gold/modelos build/api_fixture/gold/modelos
-python -m pytest tests/test_api_prediccion.py -v
+python -m pytest tests -v
 ```
+
+`tests/test_tablero_web.py` prueba `/tablero` (contenido, gzip, cache, 503
+sin datos y copia en memoria si el almacenamiento falla), la pagina en `/`,
+que las rutas de la API no queden tapadas por la pagina y el tablero a
+traves del manejador de Lambda. No necesita el modelo.
 
 Las pruebas usan el `TestClient` de FastAPI y copian el modelo real de
 `build/api_fixture` a una carpeta temporal, asi que no leen ni escriben
@@ -228,7 +246,7 @@ lectura por URI (el mismo camino de S3); modelos que la API no puede servir
 1. **Cada modelo tiene una version.** Es el campo `version` de
    `metricas.json`; si el entrenamiento no lo escribe, la API usa la huella
    SHA-256 del archivo (`sha256-<12 caracteres>`). El entrenamiento actual
-   escribe versiones como `runt-2026-11-20-deb82db1`. `/health` y cada prediccion
+   escribe versiones como `runt-2026-11-21-68160f32`. `/health` y cada prediccion
    la devuelven, asi que siempre se sabe que modelo respondio.
 2. **Cada version se puede guardar sin que se pierda.** La etapa de modelos
    borra y reescribe `gold/modelos` en cada corrida. Este comando copia el
@@ -267,6 +285,8 @@ una frase.
   usarlos.
 - Los errores no muestran trazas ni rutas internas: la respuesta dice
   `Error interno` o `Modelo no disponible` y el detalle queda en el log.
+- `/tablero` y la pagina son publicos a proposito: son agregados de datos
+  abiertos (datos.gov.co). Las predicciones siguen protegidas con la llave.
 - **Antes de exponerla hay que activar la autenticacion.** Con la variable
   `API_KEY` definida, las predicciones exigen el encabezado `X-API-Key`. En
   local sin esa variable la API queda abierta, por eso solo debe escuchar en
@@ -279,14 +299,17 @@ una frase.
 
 ## Despliegue en AWS
 
-**Estado: escrito y probado en local, todavia no desplegado.** Desplegar
-necesita credenciales de AWS. Lo que sigue es el camino listo para correr.
+**Estado: desplegada el 2026-11-21** en el stack `accidentes-runt-api`
+(us-east-1), con el modelo `runt-2026-11-21-68160f32`. URL actual:
+`https://xl60pqw9ll.execute-api.us-east-1.amazonaws.com` (el tablero en `/`, la documentacion en `/docs`). La URL cambia si
+se borra y se vuelve a crear el stack; `api.sh test` la imprime.
 
 ```mermaid
 flowchart LR
-    cliente[Cliente] -->|HTTPS + X-API-Key| apigw[API Gateway<br>HTTP API]
+    cliente[Cliente] -->|HTTPS + X-API-Key<br>/predict| apigw[API Gateway<br>HTTP API]
+    navegador[Navegador] -->|HTTPS<br>/ y /tablero| apigw
     apigw --> lambda[Lambda<br>imagen de contenedor]
-    lambda -->|solo lectura| s3[(S3<br>gold/modelos y registro_modelos)]
+    lambda -->|solo lectura| s3[(S3<br>gold/modelos, gold/tablero<br>y registro_modelos)]
     ecr[ECR] -.-> lambda
 ```
 
@@ -304,8 +327,12 @@ Gateway**:
 - Se despliega con Serverless Framework, igual que el lago, pero en un stack
   aparte (`accidentes-runt-api`), para montarla y borrarla sin tocar el
   lago.
-- La funcion solo tiene permiso de lectura sobre `gold/modelos/` y
-  `registro_modelos/` del bucket.
+- La funcion solo tiene permiso de lectura sobre `gold/modelos/`,
+  `gold/tablero/` y `registro_modelos/` del bucket.
+- El tablero web va en la misma funcion: una sola URL publica para la
+  pagina, sus datos y las predicciones, sin CORS ni otro servicio que
+  mantener. No hace falta una maquina virtual: una instancia EC2 cobraria
+  por hora aunque nadie entre.
 
 Costo estimado: con el uso del proyecto (cientos de llamadas) queda dentro de
 la capa gratuita de Lambda (1 millon de peticiones y 400 mil GB-segundo al
@@ -328,7 +355,8 @@ bash infra/scripts/api.sh deploy     # construye la imagen, despliega y prueba
 
 `api.sh deploy` termina con una prueba de humo contra la URL publica:
 `/health`, una prediccion sin llave (debe dar 401), una con llave, una
-entrada invalida (422) y un lote. Si algo no responde como se espera, el
+entrada invalida (422), un lote, la pagina del tablero y `/tablero`. Al
+final imprime la URL del tablero. Si algo no responde como se espera, el
 script falla. La evidencia queda en `build/api_aws_smoke.txt`.
 
 ```bash
@@ -348,11 +376,11 @@ cargan el modelo nuevo; `api.sh deploy` fuerza el cambio de inmediato.
 | Parte | Estado |
 |---|---|
 | API en local con uvicorn | Probado con curl con el modelo del RUNT |
-| Imagen Docker de la API | Probada con el modelo anterior; sin reconstruir con el del RUNT |
-| Manejador de Lambda | Probado en pytest con eventos de API Gateway; la imagen no se ha reconstruido con el modelo del RUNT |
-| Lectura del modelo por URI | Probado con `file://`, el mismo camino de codigo que `s3://` |
-| `infra/api/serverless.yml` y `api.sh` | Sintaxis revisada. **Sin desplegar** |
-| Lectura real desde S3, permisos IAM, URL publica | **Sin probar: necesita AWS** |
+| Pruebas automaticas | 60 pruebas en pytest (`tests/`), incluido el manejador de Lambda con eventos de API Gateway |
+| Tablero servido por la API (`/` y `/tablero`) | Probado en local con un navegador y en AWS |
+| Despliegue en AWS (`api.sh deploy`) | Desplegado el 2026-11-21: imagen en ECR, Lambda y HTTP API |
+| Lectura real desde S3, permisos IAM, URL publica | Probado: la prueba de humo de `api.sh test` pasa las 7 llamadas (evidencia en `build/api_aws_smoke.txt`) |
+| Imagen Docker local (`api/Dockerfile`) | Probada con el modelo anterior; sin reconstruir con el del RUNT |
 
 ## Como se consumen los resultados
 
@@ -367,8 +395,8 @@ S3, y se consultan con Athena:
 | `gold/modelos/letalidad/` | `letalidad` | Letalidad observada contra esperada por municipio |
 | `gold/modelos/grupos/` | `grupos` | Grupo (k-means) de cada municipio con sus variables |
 
-Los consume el tablero web ([dashboard/](../dashboard/)), por medio de
-`scripts/exportar_tablero_runt.py`, y las consultas directas en Athena:
+Los consume el tablero web ([dashboard/](../dashboard/)), por medio de la
+etapa `src/tablero.py` y `GET /tablero`, y las consultas directas en Athena:
 
 ```sql
 -- Municipios con mas vehiculos en alerta y cuantos estuvieron en siniestros con muertos

@@ -1,4 +1,4 @@
-# Image of the prediction API, served with uvicorn.
+# Image of the prediction API and the web dashboard, served with uvicorn.
 # Build it from the root of the repository:
 #   docker build -f api/Dockerfile -t accidentes-api .
 # Run it with the model folder mounted read-only:
@@ -16,6 +16,7 @@ RUN pip install --no-cache-dir -r requirements-api.txt
 
 COPY src ./src
 COPY api ./api
+COPY dashboard ./dashboard
 
 # The service does not need root
 RUN useradd --create-home --uid 10001 api

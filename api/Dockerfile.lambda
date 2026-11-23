@@ -9,5 +9,6 @@ RUN pip install --no-cache-dir -r requirements-api.txt
 
 COPY src ${LAMBDA_TASK_ROOT}/src
 COPY api ${LAMBDA_TASK_ROOT}/api
+COPY dashboard ${LAMBDA_TASK_ROOT}/dashboard
 
 CMD ["api.lambda_handler.handler"]

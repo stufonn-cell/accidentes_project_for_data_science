@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Prediction API on AWS: Lambda (container image) behind an API Gateway HTTP API.
+# Prediction API and web dashboard on AWS: Lambda (container image) behind an
+# API Gateway HTTP API. The dashboard is at the root of the API URL.
 # It needs the lake deployed (deploy.sh) and the pipeline run once (run.sh),
 # because the API reads the model from s3://<bucket>/gold/modelos/.
 #
@@ -43,9 +44,21 @@ call() {
   local expected="$1" description="$2"
   shift 2
   local status
-  status="$(curl -s -o "$BODY" -w '%{http_code}' --max-time 60 "$@")"
+  # native_path: with MSYS_NO_PATHCONV set, curl on Git Bash cannot write to
+  # /tmp/... and exits with code 23 (write error) after a good answer
+  status="$(curl -s -o "$(native_path "$BODY")" -w '%{http_code}' --max-time 60 "$@")"
   printf '%s -> HTTP %s\n%s\n\n' "$description" "$status" "$(cat "$BODY")" | tee -a "$EVIDENCE"
   [[ "$status" == "$expected" ]] || fail "$description: expected HTTP $expected, got $status"
+}
+
+# check_page <description> <url> <expected content type>
+check_page() {
+  local out status type size
+  out="$(curl -s -o "$(native_path "$BODY")" -w '%{http_code} %{size_download} %{content_type}' --compressed --max-time 60 "$2")"
+  # content type last: it can hold a space ("text/html; charset=utf-8")
+  read -r status size type <<< "$out"
+  printf '%s -> HTTP %s, %s, %s bytes\n\n' "$1" "$status" "$type" "$size" | tee -a "$EVIDENCE"
+  [[ "$status" == "200" && "$type" == "$3"* ]] || fail "$1: expected HTTP 200 with $3"
 }
 
 smoke_test() {
@@ -90,8 +103,13 @@ assert body['version'] == '$version', body
     -H "Content-Type: application/json" -H "X-API-Key: $key" -d "{\"vehiculos\": [$accident, $accident]}"
   [[ "$(json_field total < "$BODY")" == "2" ]] || fail "The batch did not return 2 predictions"
 
+  # Dashboard: only status and size, the data is about 1 MB of JSON
+  check_page "GET / (dashboard)" "$url/" "text/html"
+  check_page "GET /tablero (dashboard data)" "$url/tablero" "application/json"
+
   log "The API works. Model version $version. Evidence saved in build/api_aws_smoke.txt"
-  echo "Docs: $url/docs"
+  echo "Dashboard: $url/"
+  echo "Docs:      $url/docs"
 }
 
 deploy() {
@@ -106,6 +124,8 @@ deploy() {
   bucket_exists "$bucket" || fail "The lake s3://$bucket does not exist. Run: infra/scripts/deploy.sh"
   aws s3api head-object --bucket "$bucket" --key gold/modelos/metricas.json >/dev/null 2>&1 \
     || fail "There is no model in s3://$bucket/gold/modelos/. Run: infra/scripts/run.sh"
+  aws s3api head-object --bucket "$bucket" --key gold/tablero/datos.json >/dev/null 2>&1 \
+    || fail "There is no dashboard data in s3://$bucket/gold/tablero/. Run: infra/scripts/run.sh"
   if [[ -n "$model_version" ]]; then
     aws s3api head-object --bucket "$bucket" --key "registro_modelos/$model_version/modelo.joblib" >/dev/null 2>&1 \
       || fail "Version $model_version is not in s3://$bucket/registro_modelos/. Run: infra/scripts/api.sh register"
@@ -121,8 +141,11 @@ deploy() {
   fi
 
   log "Building the image and deploying $API_STACK to $REGION (5 to 10 minutes the first time)"
-  (cd "$API_DIR" && serverless deploy --region "$REGION" \
-    --param="apiKey=$API_KEY" --param="modelVersion=$model_version")
+  # Serverless v4 rejects a --param with an empty value: modelVersion only when
+  # a version is asked for (serverless.yml defaults it to the latest model)
+  local params=("--param=apiKey=$API_KEY")
+  [[ -n "$model_version" ]] && params+=("--param=modelVersion=$model_version")
+  (cd "$API_DIR" && serverless deploy --region "$REGION" "${params[@]}")
 
   smoke_test
 }

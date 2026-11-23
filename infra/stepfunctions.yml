@@ -1,5 +1,5 @@
 Resources:
-  # ingesta -> bronze -> silver -> gold -> models -> crawler. Each Glue stage retries
+  # ingesta -> bronze -> silver -> gold -> models -> tablero -> expand -> crawler. Each Glue stage retries
   # once, and any failure publishes the error to SNS before failing.
   PipelineStateMachine:
     Type: AWS::StepFunctions::StateMachine
@@ -18,7 +18,7 @@ Resources:
               "Resource": "arn:aws:states:::glue:startJobRun.sync",
               "Parameters": { "JobName": "${self:custom.prefix}-ingesta" },
               "ResultPath": null,
-              "TimeoutSeconds": 900,
+              "TimeoutSeconds": 1800,
               "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
               "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
               "Next": "Bronze"
@@ -28,7 +28,7 @@ Resources:
               "Resource": "arn:aws:states:::glue:startJobRun.sync",
               "Parameters": { "JobName": "${self:custom.prefix}-bronze" },
               "ResultPath": null,
-              "TimeoutSeconds": 1800,
+              "TimeoutSeconds": 3600,
               "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
               "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
               "Next": "Silver"
@@ -38,7 +38,7 @@ Resources:
               "Resource": "arn:aws:states:::glue:startJobRun.sync",
               "Parameters": { "JobName": "${self:custom.prefix}-silver" },
               "ResultPath": null,
-              "TimeoutSeconds": 1800,
+              "TimeoutSeconds": 3600,
               "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
               "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
               "Next": "Gold"
@@ -48,7 +48,7 @@ Resources:
               "Resource": "arn:aws:states:::glue:startJobRun.sync",
               "Parameters": { "JobName": "${self:custom.prefix}-gold" },
               "ResultPath": null,
-              "TimeoutSeconds": 1800,
+              "TimeoutSeconds": 3600,
               "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
               "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
               "Next": "Models"
@@ -58,7 +58,29 @@ Resources:
               "Resource": "arn:aws:states:::glue:startJobRun.sync",
               "Parameters": { "JobName": "${self:custom.prefix}-models" },
               "ResultPath": null,
-              "TimeoutSeconds": 1800,
+              "TimeoutSeconds": 3600,
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
+              "Next": "Tablero"
+            },
+            "Tablero": {
+              "Comment": "Writes gold/tablero/datos.json, the data the API serves to the web dashboard.",
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": { "JobName": "${self:custom.prefix}-tablero" },
+              "ResultPath": null,
+              "TimeoutSeconds": 1200,
+              "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
+              "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
+              "Next": "Expand"
+            },
+            "Expand": {
+              "Comment": "Synthetic volume test: gold/vehiculos_expandido with at least one million rows. The model and the dashboard never read it.",
+              "Type": "Task",
+              "Resource": "arn:aws:states:::glue:startJobRun.sync",
+              "Parameters": { "JobName": "${self:custom.prefix}-expand" },
+              "ResultPath": null,
+              "TimeoutSeconds": 1200,
               "Retry": [{ "ErrorEquals": ["States.TaskFailed"], "IntervalSeconds": 30, "MaxAttempts": 1 }],
               "Catch": [{ "ErrorEquals": ["States.ALL"], "ResultPath": "$.error", "Next": "NotifyFailure" }],
               "Next": "Catalog"
@@ -78,7 +100,7 @@ Resources:
               "Parameters": {
                 "TopicArn": "${AlertsTopic}",
                 "Subject": "Pipeline accidentes-runt: OK",
-                "Message": "El pipeline termino: ingesta, bronze, silver, gold y modelos actualizados."
+                "Message": "El pipeline termino: ingesta, bronze, silver, gold, modelos, datos del tablero y tabla sintetica actualizados."
               },
               "ResultPath": null,
               "End": true

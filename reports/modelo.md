@@ -2,7 +2,7 @@
 
 Este informe recorre los criterios 1 a 6 de la rubrica de Aprendizaje
 Automatico. Todos los numeros salen de `data/gold/modelos/metricas.json`
-(version `runt-2026-11-20-deb82db1`) y de las tablas de `data/gold/modelos`,
+(version `runt-2026-11-21-68160f32`, la misma que sirve la API en AWS) y de las tablas de `data/gold/modelos`,
 y se reproducen con `python -m src.pipeline`. Las semillas estan fijas; que
 dos corridas den un `metricas.json` identico byte a byte se comprobo con la
 version anterior del flujo, antes de repartir las cargas masivas.
@@ -148,7 +148,7 @@ PR-AUC de 0.259 en entrenamiento y 0.162 en validacion (logistica: 0.225 y
 | Filas de entrenamiento | PR-AUC entrenamiento | PR-AUC validacion |
 |---|---|---|
 | 8,677 | 0.2979 | 0.1332 |
-| 26,032 | 0.2780 | 0.1475 |
+| 26,032 | 0.2838 | 0.1467 |
 | 86,776 | 0.2552 | 0.1578 |
 
 La brecha se cierra con mas datos y las dos curvas quedan bajas: domina el
@@ -162,10 +162,10 @@ variables nuevas (tipo de via, hora, victimas), que el CSV no trae.
 
 | Segmento | Municipios | Filas | Prevalencia | PR-AUC | ROC-AUC | Sensibilidad | Precision |
 |---|---|---|---|---|---|---|---|
-| Grupo 1 (carreteras) | 96 | 17,664 | 22.8% | 0.286 | 0.580 | 0.762 | 0.248 |
-| Grupo 2 (urbano) | 113 | 305,374 | 3.5% | 0.125 | 0.657 | 0.347 | 0.178 |
+| Grupo 1 (urbano) | 113 | 305,374 | 3.5% | 0.125 | 0.656 | 0.347 | 0.178 |
+| Grupo 2 (carreteras) | 96 | 17,664 | 22.8% | 0.286 | 0.580 | 0.762 | 0.248 |
 | Menos de 100 filas | 378 | 4,030 | 27.0% | 0.366 | 0.610 | 0.821 | 0.289 |
-| Total | | 327,068 | 4.8% | 0.181 | 0.713 | 0.486 | 0.211 |
+| Total | | 327,068 | 4.8% | 0.181 | 0.712 | 0.486 | 0.211 |
 
 Dentro de cada grupo la ROC-AUC baja (0.58 a 0.66) frente a 0.71 en total:
 buena parte de lo que el modelo sabe es distinguir contextos (ciudad frente a
@@ -251,8 +251,8 @@ entrenado con 2022-2024) sobre perfiles concretos:
 | Caso | Probabilidad de muertos | Alerta (>= 0.091) |
 |---|---|---|
 | Tractocamion Kenworth 2012 en el Cesar, policia de carreteras, diciembre | 0.424 | Si |
-| Moto AKT 2023 en Antioquia, policia de carreteras, junio | 0.193 | Si |
-| Bus Chevrolet 2010 en Boyaca, policia de carreteras, enero | 0.185 | Si |
+| Moto AKT 2023 en Antioquia, policia de carreteras, junio | 0.185 | Si |
+| Bus Chevrolet 2010 en Boyaca, policia de carreteras, enero | 0.181 | Si |
 | La misma moto AKT 2023, secretaria de Medellin, junio | 0.005 | No |
 | Automovil Chevrolet 2015, secretaria de Bogota, marzo | 0.019 | No |
 
@@ -261,8 +261,8 @@ Lectura:
 - El tractocamion en carretera es el perfil de mas riesgo: 0.42 es 8 veces la
   prevalencia. Coincide con el EDA (los tractocamiones tienen 28.8% con
   muertos) y con la importancia de tipo y autoridad.
-- La misma moto pasa de 0.005 a 0.193 solo por cambiar la autoridad, y en
-  carretera queda por encima del bus. Esto muestra el mayor acierto y el
+- La misma moto pasa de 0.005 a 0.185 solo por cambiar la autoridad, y en
+  carretera queda apenas por encima del bus (0.181). Esto muestra el mayor acierto y el
   mayor riesgo del modelo: acierta en que un siniestro en carretera es mas
   grave, pero parte de esa diferencia es que Medellin casi no registra
   siniestros con muertos.
@@ -286,14 +286,15 @@ Lectura:
 **Agrupamiento.** 210 municipios con 100 o mas registros (443,675 filas),
 variables estandarizadas: proporcion con muertos, edad promedio, proporcion
 de motos, de carga y de autoridad nacional, y logaritmo de los registros.
-Silueta por k (2 a 8): k-means 0.312, 0.255, 0.247, 0.244, 0.229, 0.222,
-0.233; jerarquico de Ward 0.319, 0.236, 0.238, 0.228, 0.223, 0.230, 0.214.
+Silueta por k (2 a 8): k-means 0.312, 0.255, 0.241, 0.243, 0.229, 0.221,
+0.210; jerarquico de Ward 0.319, 0.236, 0.238, 0.228, 0.223, 0.230, 0.214.
 Los dos eligen k = 2 y Ward tiene una silueta apenas mayor, pero se deja
 k-means como dice la base del proyecto. El indice de Rand ajustado entre los
 dos es 0.28 y las siluetas son bajas: la estructura es debil y los grupos son
-mas un gradiente que tipos separados. Grupo 1: 97 municipios de carretera
-con 28,156 registros, 24.1% con muertos en promedio, 17% carga y 70% de
-registros de la autoridad nacional. Grupo 2: 113 municipios urbanos con
+mas un gradiente que tipos separados. Grupo 1: 113 municipios urbanos con
 415,519 registros, 8.1% con muertos, 62% motos y 19% de autoridad nacional.
-En la tabla de errores por segmento el grupo 1 tiene 96 municipios porque
-Sesquile solo tiene registros en 2025-2026.
+Grupo 2: 97 municipios de carretera con 28,156 registros, 24.1% con muertos
+en promedio, 17% carga y 70% de registros de la autoridad nacional. En la
+tabla de errores por segmento el grupo 2 tiene 96 municipios porque Sesquile
+solo tiene registros en 2025-2026. k-means numera los grupos en cada corrida:
+en la version `runt-2026-11-20` el 1 era el de carretera y el 2 el urbano.

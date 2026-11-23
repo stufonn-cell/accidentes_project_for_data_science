@@ -9,6 +9,9 @@ septiembre de 2026.
 El historial de git contiene una version anterior del proyecto sobre la
 accidentalidad de Envigado.
 
+**Tablero publico:** https://xl60pqw9ll.execute-api.us-east-1.amazonaws.com/ (desplegado en AWS el 2026-11-21; la URL cambia
+si se borra y se vuelve a crear el stack de la API).
+
 ## Integrantes
 
 - Daniel Felipe Arango Guarin
@@ -45,8 +48,8 @@ transito Ley 2251-2022, datos.gov.co, conjunto
 [6jmc-vaxk](https://www.datos.gov.co/d/6jmc-vaxk), licencia CC BY-SA 4.0:
 hay que citar al Ministerio de Transporte y al RUNT y compartir los datos
 derivados con la misma licencia. 9 columnas, sin datos personales. El CSV
-(unos 50 MB) no se versiona en git: lo deja `python -m src.ingesta` en
-`data/raw/vehiculos_siniestros_runt.csv`, y `data/raw/manifiesto.json`
+(unos 50 MB) esta versionado en `data/raw/vehiculos_siniestros_runt.csv`;
+`python -m src.ingesta` lo vuelve a descargar y `data/raw/manifiesto.json`
 registra su huella sha256 y las validaciones.
 
 Lo que hay que tener en cuenta al leer los resultados:
@@ -91,11 +94,15 @@ flowchart LR
         bronze --> silver[Silver<br>limpio, normalizado y con marcas de calidad]
         silver --> gold[Gold<br>vehiculos, municipio_mes, municipio]
         gold --> modelos[Modelos<br>src/models.py] --> gm[Gold<br>modelos]
+        gold --> tab[Tablero<br>src/tablero.py] --> gt[Gold<br>tablero/datos.json]
+        gm --> tab
+        gold --> exp[Expansion sintetica<br>src/expand.py] --> gx[Gold<br>vehiculos_expandido]
     end
-    gm --> api[API FastAPI]
+    gm --> api[API FastAPI<br>predicciones, tablero web]
+    gt --> api
     gold --> athena[Athena]
     gm --> athena
-    fuente --> tablero[Tablero web]
+    gx --> athena
 ```
 
 - La ingesta (`python -m src.ingesta`) descarga el CSV del portal y valida
@@ -121,7 +128,9 @@ flowchart LR
   (`anio - modelo`, con piso en 0), marca valores imposibles y marca los
   municipios y meses con reporte anomalo.
 - Gold deja las tres tablas de la base del proyecto; la etapa de modelos
-  agrega sus salidas en `gold/modelos`.
+  agrega sus salidas en `gold/modelos`, la del tablero su JSON en
+  `gold/tablero/` y la expansion sintetica la tabla de volumen
+  `gold/vehiculos_expandido` (ver [Tabla sintetica de volumen](#tabla-sintetica-de-volumen)).
 
 Gold es la capa que lee Athena, asi que los nombres van sin tildes ni ñ y
 cada tabla tiene su propia carpeta. El detalle del analisis exploratorio
@@ -139,7 +148,7 @@ pip install -r requirements.txt
    python -m src.ingesta
    ```
 
-2. **Pipeline** completo (bronze, silver, gold y modelos, unos 7 minutos),
+2. **Pipeline** completo (bronze, silver, gold, modelos y datos del tablero),
    que vuelve a validar la copia cruda y se detiene si falla:
 
    ```bash
@@ -147,25 +156,28 @@ pip install -r requirements.txt
    ```
 
    Tambien se pueden correr las etapas una por una: `python -m src.bronze`,
-   `python -m src.silver`, `python -m src.gold` y `python -m src.models`.
+   `python -m src.silver`, `python -m src.gold`, `python -m src.models` y
+   `python -m src.tablero`.
    `python -m src.eda` genera las figuras de `reports/figuras/`. Con
    `DATA_DIR=s3://bucket` el mismo codigo lee y escribe en S3.
 
-3. **Tablero web**: exportar los datos y abrir la pagina.
-
-   ```bash
-   python scripts/exportar_tablero_runt.py
-   python -m http.server 8000 --directory dashboard
-   ```
-
-4. **API de prediccion**:
+3. **Tablero web y API**: la API sirve el tablero en la raiz y sus datos
+   en `/tablero`. Abrir http://127.0.0.1:8020/.
 
    ```bash
    pip install -r requirements-api.txt
    python -m uvicorn api.main:app --host 127.0.0.1 --port 8020
    ```
 
-5. **Pruebas** de la API, con una copia del modelo entrenado:
+   Sin API, el tablero usa la copia `dashboard/data/datos.js`:
+
+   ```bash
+   python scripts/exportar_tablero_runt.py
+   python -m http.server 8000 --directory dashboard
+   ```
+
+4. **Pruebas** de la API y del tablero (60), con una copia del modelo
+   entrenado:
 
    ```bash
    pip install -r api/requirements-test.txt
@@ -187,6 +199,8 @@ pip install -r requirements.txt
 | `gold/modelos/predicciones/` | Probabilidad y alerta de cada vehiculo: fuera de pliegue en 2022-2024 y modelo final en 2025-2026 |
 | `gold/modelos/grupos/` | Grupo de cada municipio con 100 o mas registros y sus variables |
 | `gold/modelos/letalidad/` | Letalidad observada contra esperada por municipio |
+| `gold/tablero/datos.json` | Datos del tablero web (no es tabla del catalogo): cubo por mes, departamento, tipo y edad, auditoria del reporte y salidas del modelo |
+| `gold/vehiculos_expandido/anio=AAAA/` | Volumen sintetico: las filas reales mas copias desplazadas en meses (1,351,005 filas), con `es_sintetico` y `desplazamiento_meses`. No la usa el modelo |
 
 Las proporciones (`prop_*`) van de 0 a 1.
 
@@ -210,7 +224,7 @@ municipios que no vio.
   municipios con 100 o mas registros, k elegido por silueta.
 
 Resultados de `data/gold/modelos/metricas.json` (version
-`runt-2026-11-20-deb82db1`):
+`runt-2026-11-21-68160f32`, la misma que sirve la API en AWS):
 
 | Modelo | PR-AUC validacion agrupada | PR-AUC prueba 2024 | ROC-AUC 2024 | Sensibilidad 2024 | Precision 2024 |
 |---|---|---|---|---|---|
@@ -238,25 +252,56 @@ importancia por permutacion reemplaza a SHAP. Detalle y decisiones en
 
 ## Tablero web
 
-[dashboard/](dashboard/) es un tablero web estatico (HTML, CSS y JavaScript
-sin dependencias) dirigido a secretarias de movilidad y autoridades de
+[dashboard/](dashboard/) es un tablero web (HTML, CSS y JavaScript sin
+dependencias) dirigido a secretarias de movilidad y autoridades de
 transito. Sigue el orden de la exposicion: el problema, la calidad del dato
 (la caida del reporte de Medellin y Bogota en 2025, la carga masiva de julio
 de 2024 y el estado del reporte de cada municipio mes a mes), como se
 trataron esas inconsistencias, los hallazgos por vehiculo y contexto (con
 filtros por periodo, departamento y tipo de vehiculo), el modelo y las
-acciones que se proponen. Lee `dashboard/data/datos.js`, que genera:
+acciones que se proponen.
 
-```bash
-python scripts/exportar_tablero_runt.py
+De donde salen los datos:
+
+```mermaid
+flowchart LR
+    gold[(gold)] --> etapa[src/tablero.py<br>ultima etapa del pipeline] --> json[(gold/tablero/datos.json)]
+    json --> api[API FastAPI<br>GET /tablero] --> pagina[dashboard/<br>servido por la misma API]
 ```
 
-El script lee la capa gold despues de `python -m src.pipeline`: la tabla
-`vehiculos` (con la edad recalculada y la bandera `cobertura_anomala`), la
-tabla `municipio_mes` (estado del reporte) y `modelos`. Los hallazgos
-excluyen los registros de meses con reporte anomalo, igual que el
-entrenamiento. Luego basta con abrir `dashboard/index.html` en el navegador
-o servir la carpeta con `python -m http.server`.
+- `src/tablero.py` es la ultima etapa del pipeline (en AWS, el job de Glue
+  `-tablero`). Lee `vehiculos` (con la edad recalculada y la bandera
+  `cobertura_anomala`), `municipio_mes`, las salidas de `modelos` y la copia
+  cruda, y escribe un solo JSON en `gold/tablero/datos.json`. Los hallazgos
+  excluyen los registros de meses con reporte anomalo, igual que el
+  entrenamiento.
+- La API lo entrega en `GET /tablero` (publico, comprimido con gzip, unos
+  185 KB; lo guarda en memoria 5 minutos) y sirve la pagina en `/`. Asi el
+  tablero siempre muestra la ultima corrida del pipeline, sin volver a
+  publicar nada.
+- [dashboard/js/cargar.js](dashboard/js/cargar.js) pide `/tablero`. Si no
+  hay API (la pagina abierta desde el disco o con `http.server`), usa la
+  copia `dashboard/data/datos.js`, que genera
+  `python scripts/exportar_tablero_runt.py` con el mismo codigo.
+- En AWS esta en https://xl60pqw9ll.execute-api.us-east-1.amazonaws.com/.
+
+Como leer las graficas por tipo de vehiculo. Todas usan `con_muertos`, que
+es la gravedad **del siniestro**, y solo las filas fuera de meses con
+reporte anomalo (426,583 vehiculos, 23,441 en siniestros con muertos, 5.5 %):
+
+- **Letalidad por tipo** = vehiculos de ese tipo en siniestros con muertos /
+  vehiculos de ese tipo en siniestros con victimas (tipos con 100 o mas
+  vehiculos). El tractocamion tiene 28.7 %: cuando esta en un siniestro con
+  victimas, en 29 de cada 100 hay un muerto. No dice que mueran sus
+  ocupantes; lo mas probable es que muera el otro (moto o peaton).
+- **Casos mortales por tipo** = conteo de vehiculos de ese tipo en
+  siniestros con muertos. Las motos son el 54 % (12,717) con una letalidad
+  cercana al promedio (5.2 %): pesan por volumen, no porque cada siniestro
+  de moto sea mas grave.
+- **El dato no dice quien murio.** Un choque camion-moto con un muerto suma
+  un caso a cada vehiculo, y un siniestro con dos muertos cuenta como uno.
+  Para saber quien muere hace falta otra fuente con victimas (Observatorio
+  Nacional de Seguridad Vial, Medicina Legal).
 
 ## API de prediccion
 
@@ -274,14 +319,16 @@ reales, versionado y seguridad en [docs/api.md](docs/api.md).
 
 Toda la infraestructura esta en codigo en [infra/](infra/), con Serverless
 Framework. Un solo comando la crea, otro corre el pipeline y otro la borra
-por completo. **Estado: el codigo de despliegue esta actualizado para el
-RUNT pero no se ha vuelto a desplegar.**
+por completo. **Estado: desplegado el 2026-11-21** en la cuenta del curso
+(us-east-1): el lago `accidentes-runt` con el pipeline corrido sin errores
+(unos 18 minutos de punta a punta) y la API con el tablero
+`accidentes-runt-api`.
 
 ```mermaid
 flowchart LR
     sched[EventBridge Scheduler<br>mensual, apagado por defecto] --> sfn
     subgraph sfn[Step Functions]
-        i[Glue: ingesta] --> b[Glue: bronze] --> s[Glue: silver] --> g[Glue: gold] --> m[Glue: modelos] --> c[Crawler]
+        i[Glue: ingesta] --> b[Glue: bronze] --> s[Glue: silver] --> g[Glue: gold] --> m[Glue: modelos] --> t[Glue: tablero] --> x[Glue: expand] --> c[Crawler]
     end
     s3[(S3<br>raw, bronze, silver, gold)] <--> sfn
     c --> cat[Glue Data Catalog] --> athena[Athena]
@@ -292,12 +339,13 @@ flowchart LR
 |---|---|
 | Bucket S3 | El lago: `raw/`, `bronze/`, `silver/`, `gold/` y `scripts/` |
 | Job de ingesta | Job de Python shell que corre `src/ingesta.py`: descarga y valida el CSV; si el portal no responde usa la copia de `raw/respaldo/` |
-| 4 jobs de Glue | bronze, silver, gold y modelos. Todos corren [glue_jobs/run_stage.py](glue_jobs/run_stage.py), que llama al modulo de pandas de `src` que le toca |
+| 6 jobs de Glue | bronze, silver, gold, modelos, tablero y expand (tabla sintetica de volumen). Todos corren [glue_jobs/run_stage.py](glue_jobs/run_stage.py), que llama al modulo de pandas de `src` que le toca |
 | Step Functions | Corre las etapas en orden, reintenta una vez cada una y avisa por SNS si algo falla |
-| Crawler y base de datos de Glue | Registran `silver/vehiculos`, las tres tablas de gold y `gold/modelos/{metricas,predicciones,grupos,letalidad}` para consultarlas con Athena |
+| Crawler y base de datos de Glue | Registran `silver/vehiculos`, las tres tablas de gold, `gold/vehiculos_expandido` y `gold/modelos/{metricas,predicciones,grupos,letalidad}` para consultarlas con Athena |
 | Workgroup de Athena | Consultas con un limite de 1 GB escaneado por consulta |
 | EventBridge Scheduler | Corre el pipeline el dia 1 de cada mes. Se crea apagado |
-| Usuario IAM de solo lectura | Solo puede consultar gold con Athena; su llave la crea `infra/scripts/powerbi.sh` |
+| Usuario IAM de solo lectura | Para conectar una herramienta de BI a Athena: solo puede consultar gold. Su llave la crea `infra/scripts/powerbi.sh` (el tablero de Power BI se reemplazo por el tablero web) |
+| API y tablero web (stack aparte) | Lambda con imagen de contenedor detras de un HTTP API: el tablero en `/`, sus datos en `/tablero` y las predicciones en `/predict`. Ver [docs/api.md](docs/api.md) |
 
 Los jobs usan el mismo codigo de `src` que en local: [src/config.py](src/config.py)
 lee y escribe en S3 con pyarrow cuando `DATA_DIR` es `s3://...`, y limpia cada
@@ -317,6 +365,8 @@ viejo y se retiro.
   usuario de AWS necesita permisos para crear roles de IAM.
 - El CSV en `data/raw/vehiculos_siniestros_runt.csv` (`python -m src.ingesta`):
   `deploy.sh` lo sube como copia de respaldo.
+- Solo para la API: Docker Desktop corriendo, porque `api.sh deploy`
+  construye la imagen.
 
 Los comandos se corren desde la raiz del repositorio, en Git Bash o en el dev
 container. El stack se llama `accidentes-runt`.
@@ -328,7 +378,8 @@ bash infra/scripts/deploy.sh     # crea todo y sube codigo y CSV de respaldo
 bash infra/scripts/run.sh        # corre el pipeline y espera al crawler
 bash infra/scripts/destroy.sh    # borra todo, pide confirmacion
 bash infra/scripts/status.sh     # muestra que existe en AWS en este momento
-bash infra/scripts/api.sh deploy # la API en Lambda, ver docs/api.md
+bash infra/scripts/api.sh deploy # la API y el tablero web en Lambda, ver docs/api.md
+bash infra/scripts/api.sh test   # prueba de humo de la API y el tablero; imprime la URL
 ```
 
 `run.sh` termina con error si alguna etapa falla, asi que sirve como prueba de
@@ -351,9 +402,29 @@ Para recibir un correo cuando el pipeline falle, poner `ALERT_EMAIL` en
 
 Con el stack montado y sin correr, el costo es practicamente cero: Glue, Step
 Functions, el crawler y Athena solo cobran cuando se ejecutan, y el bucket
-guarda unos cientos de MB. Cada corrida usa cuatro jobs de Glue de 2 DPU y un
-job de Python shell; el entrenamiento es la etapa mas larga. El scheduler se
+guarda unos cientos de MB. Cada corrida usa seis jobs de Glue de 2 DPU y un
+job de Python shell (unos 18 minutos en total); el entrenamiento es la etapa
+mas larga. La API y el tablero solo cobran por peticion y quedan dentro de la
+capa gratuita de Lambda con el uso del proyecto. El scheduler se
 crea apagado para que un despliegue nunca dispare corridas por su cuenta.
+
+### Tabla sintetica de volumen
+
+`src/expand.py` (job `-expand`) escribe `gold/vehiculos_expandido`, con al
+menos un millon de filas para probar volumen: las 450,335 filas reales mas
+copias desplazadas uno o mas meses (-1, +1, -2, ...), con `periodo`, `anio`,
+`mes` y `edad` recalculados y un sufijo en `id_registro`. Cada copia
+conserva la distribucion conjunta de los datos reales. `es_sintetico` y
+`desplazamiento_meses` (0 = real) separan unas de otras. El volumen se
+cambia con `EXPAND_TARGET_ROWS`. **Son datos sinteticos:** el modelo, el EDA
+y el tablero solo leen `gold/vehiculos`.
+
+```sql
+SELECT es_sintetico, desplazamiento_meses, count(*) AS registros
+FROM vehiculos_expandido
+GROUP BY es_sintetico, desplazamiento_meses
+ORDER BY desplazamiento_meses;
+```
 
 ### Consultas en Athena
 
@@ -377,4 +448,17 @@ ORDER BY pr_auc DESC;
 ```
 
 `silver/vehiculos` y `gold/vehiculos` se llaman igual; el crawler le agrega
-un sufijo a la segunda tabla que registre.
+un sufijo a la segunda tabla que registre. En el despliegue actual
+`vehiculos` es la de silver y la de gold es
+`vehiculos_ba909a10d14259339ce2e4252dc8a622`; el sufijo puede cambiar si el
+catalogo se vuelve a crear (la tabla de gold es la que apunta a
+`s3://.../gold/vehiculos/`):
+
+```sql
+-- Registros que llegaron a gold, y cuantos quedan sin meses anomalos
+SELECT count(*) AS registros, sum(1 - cobertura_anomala) AS sin_cobertura_anomala
+FROM "vehiculos_ba909a10d14259339ce2e4252dc8a622";
+```
+
+Resultado el 2026-11-21: 450,335 registros en silver y en gold, 426,583 sin
+meses anomalos.

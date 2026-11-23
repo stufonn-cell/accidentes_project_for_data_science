@@ -1,5 +1,6 @@
-# Prediction API on AWS: one Lambda function from a container image behind
-# an API Gateway HTTP API. It is a separate stack from the data lake
+# Prediction API and web dashboard on AWS: one Lambda function from a
+# container image behind an API Gateway HTTP API. The same URL serves the
+# dashboard (/), its data (/tablero) and the predictions (/predict). It is a separate stack from the data lake
 # (infra/serverless.yml), so it can be deployed and removed on its own.
 #
 # Deploy it with infra/scripts/api.sh, not by hand: the script checks that
@@ -37,6 +38,7 @@ provider:
           Action: s3:GetObject
           Resource:
             - arn:aws:s3:::${self:custom.bucketName}/gold/modelos/*
+            - arn:aws:s3:::${self:custom.bucketName}/gold/tablero/*
             - arn:aws:s3:::${self:custom.bucketName}/registro_modelos/*
         - Effect: Allow
           Action:
@@ -51,7 +53,7 @@ custom:
 functions:
   api:
     name: ${self:service}
-    description: Probabilidad de que un siniestro deje victimas
+    description: Tablero web y probabilidad de que un siniestro tenga muertos
     image:
       name: api
     # pandas and scikit-learn need memory to load; more memory also means more CPU
@@ -80,3 +82,13 @@ functions:
       - httpApi:
           method: GET
           path: /openapi.json
+      # Public, without API key: the dashboard and its aggregated data
+      - httpApi:
+          method: GET
+          path: /tablero
+      - httpApi:
+          method: GET
+          path: /
+      - httpApi:
+          method: GET
+          path: /{proxy+}

@@ -22,6 +22,7 @@ Resources:
         S3Targets:
           - Path: s3://${self:custom.bucketName}/silver/vehiculos/
           - Path: s3://${self:custom.bucketName}/gold/vehiculos/
+          - Path: s3://${self:custom.bucketName}/gold/vehiculos_expandido/
           - Path: s3://${self:custom.bucketName}/gold/municipio_mes/
           - Path: s3://${self:custom.bucketName}/gold/municipio/
           - Path: s3://${self:custom.bucketName}/gold/modelos/metricas/
@@ -41,7 +42,7 @@ Resources:
       Name: ${self:custom.prefix}-ingesta
       Role: !GetAtt GlueJobRole.Arn
       MaxCapacity: 0.0625
-      Timeout: 10
+      Timeout: 30
       MaxRetries: 0
       Command:
         Name: pythonshell
@@ -62,7 +63,7 @@ Resources:
       GlueVersion: '5.0'
       WorkerType: G.1X
       NumberOfWorkers: 2
-      Timeout: 20
+      Timeout: 60
       MaxRetries: 0
       Command:
         Name: glueetl
@@ -84,7 +85,7 @@ Resources:
       GlueVersion: '5.0'
       WorkerType: G.1X
       NumberOfWorkers: 2
-      Timeout: 20
+      Timeout: 60
       MaxRetries: 0
       Command:
         Name: glueetl
@@ -106,7 +107,7 @@ Resources:
       GlueVersion: '5.0'
       WorkerType: G.1X
       NumberOfWorkers: 2
-      Timeout: 20
+      Timeout: 60
       MaxRetries: 0
       Command:
         Name: glueetl
@@ -128,7 +129,7 @@ Resources:
       GlueVersion: '5.0'
       WorkerType: G.1X
       NumberOfWorkers: 2
-      Timeout: 20
+      Timeout: 60
       MaxRetries: 0
       Command:
         Name: glueetl
@@ -141,3 +142,50 @@ Resources:
         --additional-python-modules: ${self:custom.pythonModules}
         --data_dir: s3://${self:custom.bucketName}
         --stage: models
+
+  # Dashboard data: one JSON document in gold/tablero/ that the API serves.
+  TableroJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ${self:custom.prefix}-tablero
+      Role: !GetAtt GlueJobRole.Arn
+      GlueVersion: '5.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 20
+      MaxRetries: 0
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: s3://${self:custom.bucketName}/scripts/run_stage.py
+      DefaultArguments:
+        --job-language: python
+        --TempDir: s3://${self:custom.bucketName}/tmp/
+        --extra-py-files: s3://${self:custom.bucketName}/scripts/src.zip
+        --additional-python-modules: ${self:custom.pythonModules}
+        --data_dir: s3://${self:custom.bucketName}
+        --stage: tablero
+
+  # Synthetic volume: gold/vehiculos_expandido, at least one million rows
+  # (real rows plus month-shifted copies). Never read by the model.
+  ExpandJob:
+    Type: AWS::Glue::Job
+    Properties:
+      Name: ${self:custom.prefix}-expand
+      Role: !GetAtt GlueJobRole.Arn
+      GlueVersion: '5.0'
+      WorkerType: G.1X
+      NumberOfWorkers: 2
+      Timeout: 20
+      MaxRetries: 0
+      Command:
+        Name: glueetl
+        PythonVersion: '3'
+        ScriptLocation: s3://${self:custom.bucketName}/scripts/run_stage.py
+      DefaultArguments:
+        --job-language: python
+        --TempDir: s3://${self:custom.bucketName}/tmp/
+        --extra-py-files: s3://${self:custom.bucketName}/scripts/src.zip
+        --additional-python-modules: ${self:custom.pythonModules}
+        --data_dir: s3://${self:custom.bucketName}
+        --stage: expand
