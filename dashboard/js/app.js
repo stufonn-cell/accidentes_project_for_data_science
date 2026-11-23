@@ -28,7 +28,7 @@ window.iniciarTablero = function (D) {
   const plural = (cod) => PLURAL[cod] || tipoTxt(cod).toLowerCase();
   /* "De cada 100": un decimal por debajo de 10, sin decimales por encima */
   const de100 = (p) => nf(p * 100 < 10 ? 1 : 0).format(p * 100);
-  const MODELO_TXT = { prevalencia: 'Sin modelo (al azar)', regresion_logistica: 'Regresión logística', gradient_boosting: 'Gradient boosting', bosque_aleatorio: 'Random forest' };
+  const MODELO_TXT = { prevalencia: 'Sin modelo (al azar)', regresion_logistica: 'Regresión logística', gradient_boosting: 'Gradient boosting', bosque_aleatorio: 'Random forest', extra_trees: 'Extra Trees', arbol_decision: 'Árbol de decisión' };
   const TILDES = { Medellin: 'Medellín', Bogota: 'Bogotá', Ibague: 'Ibagué', Cucuta: 'Cúcuta', Monteria: 'Montería', Itagui: 'Itagüí', Popayan: 'Popayán', Quibdo: 'Quibdó', Facatativa: 'Facatativá', Zipaquira: 'Zipaquirá', Chia: 'Chía', Fusagasuga: 'Fusagasugá', Jamundi: 'Jamundí', Tulua: 'Tuluá' };
   const muni = (s) => { const x = titulo(s.replace(/ \(.*\)$/, '')); return TILDES[x] || x; };
   const enLista = (xs) => (xs.length > 1 ? `${xs.slice(0, -1).join(', ')} y ${xs[xs.length - 1]}` : xs.join(''));
@@ -448,18 +448,34 @@ window.iniciarTablero = function (D) {
     const mejor = items.find((d) => d.r.mejor) || items[0];
     if (base) items.push({ clave: 'prevalencia', nombre: MODELO_TXT.prevalencia, valor: prev, r: base });
     const sen = Object.fromEntries((Mo.sensibilidad || []).map((s) => [s.conjunto, s]));
-    $('t-modelo').textContent = 'El modelo señala bien qué reportes revisar primero, aunque falla donde se reporta distinto';
+    $('t-modelo').textContent = '¿Cómo escogimos el mejor modelo para predecir un siniestro mortal?';
 
-    // 1. Como se usa: revisar primero los reportes que el modelo marca como mas riesgosos
-    const cob = Mo.cobertura || [];
-    const c20 = cob.find((c) => Math.abs(c.fraccion - 0.2) < 1e-9) || cob[Math.floor(cob.length / 2)];
-    if (c20) {
-      dibujar('g-cobertura', G.barrasAgrupadas, { xTitulo: 'Reportes revisados primero (% del total)', yTitulo: 'Casos mortales hallados (%)',
-        descripcion: 'Casos mortales encontrados al revisar primero los reportes de mayor riesgo, frente al azar', series: ['Al azar', 'Con el modelo'], alto: 230, fmt: (v) => pct(v, 0),
-        grupos: cob.map((c) => ({ nombre: `Revisando ${pct(c.fraccion, 0)}`, valores: [c.fraccion, c.recall] })),
-        colorDe: (gi, k) => (k ? C.acento : C.neutro),
-        tip: (gr, k) => [{ nombre: k ? 'Con el modelo' : 'Al azar', valor: `${de100(gr.valores[k])} de cada 100 casos mortales` }],
+    // 1. Resumen de las métricas del ganador en validación agrupada y prueba temporal
+    const ganador = Mo.ganador;
+    if (ganador) {
+      const test = ganador.prueba_2024 || {};
+      const panel = $('g-cobertura');
+      panel.className = 'grafico resumen-modelo';
+      panel.textContent = '';
+      panel.appendChild(el('p', 'resumen-modelo-intro',
+        `${MODELO_TXT[ganador.modelo] || ganador.modelo}: elegido por PR-AUC media en validación cruzada agrupada por municipio (5 pliegues). Prueba temporal independiente en 2024.`));
+      const celdas = [
+        ['PR-AUC · prueba 2024', nf(3).format(test.average_precision || 0)],
+        ['ROC-AUC · prueba 2024', nf(3).format(test.roc_auc || 0)],
+        ['Precisión · prueba 2024', pct(test.precision || 0, 1)],
+        ['Exactitud balanceada · prueba 2024', nf(3).format(test.balanced_accuracy || 0)],
+        ['F1 · prueba 2024', nf(3).format(test.f1 || 0)],
+        ['Recall · prueba 2024', pct(test.recall || 0, 1)],
+      ];
+      const grid = el('div', 'resumen-modelo-metricas');
+      celdas.forEach(([titulo, valor]) => {
+        const celda = el('div', 'resumen-modelo-metrica');
+        celda.append(el('strong', null, valor), el('span', null, titulo));
+        grid.appendChild(celda);
       });
+      panel.appendChild(grid);
+    } else {
+      G.vacio($('g-cobertura'), 'No hay métricas del modelo ganador');
     }
 
     // 2. Que modelo: calificacion de cada uno en la prueba con 2024, junto a no usar modelo
@@ -471,14 +487,19 @@ window.iniciarTablero = function (D) {
     });
     void sen;
 
-    // 3. Municipios con mas (o menos) casos mortales de los que el modelo espera
-    const L = Mo.letalidad.map((d) => ({ ...d, nombre: muni(d.municipio), valor: d.diferencia })).sort((a, b) => b.valor - a.valor);
-    const conSigno = (v) => `${v >= 0 ? '+' : '−'}${de100(Math.abs(v))}`;
-    dibujar('g-letalidad', G.barrasDiv, { xTitulo: 'Casos mortales reales − esperados (de cada 100 vehículos)', yTitulo: 'Municipio',
-      descripcion: 'Casos mortales reales menos esperados por municipio, de cada 100 vehículos',
-      items: L.slice(0, 10), izquierda: '← menos', derecha: 'más →', fmt: conSigno, fila: 23,
-      tip: (d) => [{ nombre: 'Real, de cada 100', valor: de100(d.observada) }, { nombre: 'Esperado, de cada 100', valor: de100(d.esperada) },
-        { nombre: 'Diferencia', valor: conSigno(d.diferencia) }, { nombre: 'Vehículos en siniestros', valor: n0(d.registros) }],
+    // 3. Importancia predictiva de las variables del modelo ganador
+    const nombresVariable = {
+      autoridad: 'Autoridad', departamento: 'Departamento', tipo_grupo: 'Tipo de vehículo',
+      marca_grupo: 'Marca', edad: 'Edad del vehículo', modelo: 'Año modelo', mes: 'Mes',
+    };
+    const importancia = (Mo.importancia_variables || []).map((d) => ({
+      ...d, nombre: nombresVariable[d.variable] || d.variable, valor: d.caida_pr_auc,
+    })).sort((a, b) => b.valor - a.valor);
+    dibujar('g-importancia', G.barrasH, { xTitulo: 'Caída de PR-AUC al permutar (mayor = más aporte)', yTitulo: 'Variable',
+      descripcion: 'Importancia por permutación en una muestra de 30.000 registros de 2024; no es significancia estadística',
+      items: importancia, fmt: (v) => nf(3).format(v), fila: 24,
+      tip: (d) => [{ nombre: 'Caída media de PR-AUC', valor: nf(4).format(d.caida_pr_auc) },
+        { nombre: 'Desviación entre permutaciones', valor: nf(4).format(d.desviacion) }],
     });
 
   }

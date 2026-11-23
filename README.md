@@ -48,9 +48,10 @@ transito Ley 2251-2022, datos.gov.co, conjunto
 [6jmc-vaxk](https://www.datos.gov.co/d/6jmc-vaxk), licencia CC BY-SA 4.0:
 hay que citar al Ministerio de Transporte y al RUNT y compartir los datos
 derivados con la misma licencia. 9 columnas, sin datos personales. El CSV
-(unos 50 MB) esta versionado en `data/raw/vehiculos_siniestros_runt.csv`;
-`python -m src.ingesta` lo vuelve a descargar y `data/raw/manifiesto.json`
-registra su huella sha256 y las validaciones.
+(unos 50 MB) esta en el repositorio en
+`data/raw/vehiculos_siniestros_runt.csv`, y `data/raw/manifiesto.json`
+registra su huella sha256 y las validaciones. `python -m src.ingesta` lo
+vuelve a descargar del portal cuando el RUNT publica una version nueva.
 
 Lo que hay que tener en cuenta al leer los resultados:
 
@@ -84,6 +85,11 @@ Lo que hay que tener en cuenta al leer los resultados:
   calcular tasas por habitante.
 
 ## Arquitectura
+
+![Arquitectura del proyecto en AWS](docs/arquitectura_aws.png)
+
+El diagrama usa los iconos oficiales de AWS (Architecture Icons, julio de
+2026). El flujo logico de las capas es este:
 
 ```mermaid
 flowchart LR
@@ -215,6 +221,10 @@ municipios que no vio.
   sobre 2022-2024, sin los meses con cobertura anomala ni las filas con
   fecha reubicada (327,068 filas), con busqueda de hiperparametros en
   rejilla.
+- **Comparacion**: regresion logistica, gradient boosting, bosque aleatorio,
+  Extra Trees y arbol de decision; se selecciona el de mayor PR-AUC media
+  agrupada. La rejilla ajusta regresion logistica y gradient boosting; los
+  tres modelos de arbol restantes usan configuraciones fijas.
 - **Prueba temporal**: entrena con 2022-2023 y prueba con 2024. Los modelos
   se calibran con regresion isotonica.
 - **Umbral**: perder un siniestro con muertos se supone 10 veces mas costoso
@@ -224,14 +234,16 @@ municipios que no vio.
   municipios con 100 o mas registros, k elegido por silueta.
 
 Resultados de `data/gold/modelos/metricas.json` (version
-`runt-2026-11-21-68160f32`, la misma que sirve la API en AWS):
+`runt-2026-11-21-68160f32`):
 
-| Modelo | PR-AUC validacion agrupada | PR-AUC prueba 2024 | ROC-AUC 2024 | Sensibilidad 2024 | Precision 2024 |
-|---|---|---|---|---|---|
-| Prevalencia (referencia) | 0.052 | 0.052 | 0.500 | 0.000 | 0.000 |
-| Regresion logistica | 0.143 | 0.221 | 0.825 | 0.612 | 0.199 |
-| **Gradient boosting** | **0.162** | **0.232** | **0.825** | **0.606** | **0.206** |
-| Bosque aleatorio | 0.156 | 0.215 | 0.817 | 0.572 | 0.203 |
+| Modelo | PR-AUC 2024 | ROC-AUC 2024 | Precision 2024 | Balanced accuracy 2024 | F1 2024 | Recall 2024 |
+|---|---:|---:|---:|---:|---:|---:|
+| Prevalencia (referencia) | 0.0520 | 0.5000 | 0.0000 | 0.5000 | 0.0000 | 0.0000 |
+| Regresion logistica | 0.2210 | 0.8246 | 0.1989 | 0.7386 | 0.3003 | 0.6124 |
+| Bosque aleatorio | 0.2153 | 0.8170 | 0.2027 | 0.7243 | 0.2993 | 0.5720 |
+| Extra Trees | 0.2074 | 0.8135 | 0.1954 | 0.7193 | 0.2906 | 0.5665 |
+| Arbol de decision | 0.2315 | 0.8164 | 0.2003 | 0.7380 | 0.3015 | 0.6095 |
+| **Gradient boosting** | **0.2318** | **0.8247** | **0.2062** | **0.7392** | **0.3078** | **0.6065** |
 
 - Gana gradient boosting (mayor PR-AUC media en la validacion agrupada). En
   2024 su PR-AUC es 4.5 veces la prevalencia (0.052); en el umbral 0.0909
@@ -247,8 +259,9 @@ Resultados de `data/gold/modelos/metricas.json` (version
 
 Se usaron solo pandas, numpy, pyarrow, scikit-learn y joblib para que corra
 en Glue: la busqueda de hiperparametros es en rejilla en vez de optuna, y la
-importancia por permutacion reemplaza a SHAP. Detalle y decisiones en
-[reports/modelo.md](reports/modelo.md).
+importancia por permutacion reemplaza a SHAP. El dashboard compara todos los
+candidatos y presenta las metricas de validacion agrupada y prueba temporal
+del ganador. Detalle y decisiones en [reports/modelo.md](reports/modelo.md).
 
 ## Tablero web
 
@@ -259,49 +272,22 @@ transito. Sigue el orden de la exposicion: el problema, la calidad del dato
 de 2024 y el estado del reporte de cada municipio mes a mes), como se
 trataron esas inconsistencias, los hallazgos por vehiculo y contexto (con
 filtros por periodo, departamento y tipo de vehiculo), el modelo y las
-acciones que se proponen.
+acciones que se proponen. Lee `dashboard/data/datos.js`, que genera:
 
-De donde salen los datos:
-
-```mermaid
-flowchart LR
-    gold[(gold)] --> etapa[src/tablero.py<br>ultima etapa del pipeline] --> json[(gold/tablero/datos.json)]
-    json --> api[API FastAPI<br>GET /tablero] --> pagina[dashboard/<br>servido por la misma API]
+```bash
+python scripts/exportar_tablero_runt.py
 ```
 
-- `src/tablero.py` es la ultima etapa del pipeline (en AWS, el job de Glue
-  `-tablero`). Lee `vehiculos` (con la edad recalculada y la bandera
-  `cobertura_anomala`), `municipio_mes`, las salidas de `modelos` y la copia
-  cruda, y escribe un solo JSON en `gold/tablero/datos.json`. Los hallazgos
-  excluyen los registros de meses con reporte anomalo, igual que el
-  entrenamiento.
-- La API lo entrega en `GET /tablero` (publico, comprimido con gzip, unos
-  185 KB; lo guarda en memoria 5 minutos) y sirve la pagina en `/`. Asi el
-  tablero siempre muestra la ultima corrida del pipeline, sin volver a
-  publicar nada.
-- [dashboard/js/cargar.js](dashboard/js/cargar.js) pide `/tablero`. Si no
-  hay API (la pagina abierta desde el disco o con `http.server`), usa la
-  copia `dashboard/data/datos.js`, que genera
-  `python scripts/exportar_tablero_runt.py` con el mismo codigo.
-- En AWS esta en https://xl60pqw9ll.execute-api.us-east-1.amazonaws.com/.
-
-Como leer las graficas por tipo de vehiculo. Todas usan `con_muertos`, que
-es la gravedad **del siniestro**, y solo las filas fuera de meses con
-reporte anomalo (426,583 vehiculos, 23,441 en siniestros con muertos, 5.5 %):
-
-- **Letalidad por tipo** = vehiculos de ese tipo en siniestros con muertos /
-  vehiculos de ese tipo en siniestros con victimas (tipos con 100 o mas
-  vehiculos). El tractocamion tiene 28.7 %: cuando esta en un siniestro con
-  victimas, en 29 de cada 100 hay un muerto. No dice que mueran sus
-  ocupantes; lo mas probable es que muera el otro (moto o peaton).
-- **Casos mortales por tipo** = conteo de vehiculos de ese tipo en
-  siniestros con muertos. Las motos son el 54 % (12,717) con una letalidad
-  cercana al promedio (5.2 %): pesan por volumen, no porque cada siniestro
-  de moto sea mas grave.
-- **El dato no dice quien murio.** Un choque camion-moto con un muerto suma
-  un caso a cada vehiculo, y un siniestro con dos muertos cuenta como uno.
-  Para saber quien muere hace falta otra fuente con victimas (Observatorio
-  Nacional de Seguridad Vial, Medicina Legal).
+El script lee la capa gold despues de `python -m src.pipeline`: la tabla
+`vehiculos` (con la edad recalculada y la bandera `cobertura_anomala`), la
+tabla `municipio_mes` (estado del reporte) y `modelos`. Los hallazgos
+excluyen los registros de meses con reporte anomalo, igual que el
+entrenamiento. La seccion del modelo compara los candidatos, resume las seis
+metricas 2024 del ganador y presenta sus hiperparametros elegidos, tamaño de
+la muestra de busqueda y variables de entrada. Tambien muestra la importancia
+predictiva por permutacion de variables (no significancia estadistica
+inferencial). Luego basta con abrir `dashboard/index.html` en el navegador o
+servir la carpeta con `python -m http.server`.
 
 ## API de prediccion
 
@@ -324,16 +310,8 @@ por completo. **Estado: desplegado el 2026-11-21** en la cuenta del curso
 (unos 18 minutos de punta a punta) y la API con el tablero
 `accidentes-runt-api`.
 
-```mermaid
-flowchart LR
-    sched[EventBridge Scheduler<br>mensual, apagado por defecto] --> sfn
-    subgraph sfn[Step Functions]
-        i[Glue: ingesta] --> b[Glue: bronze] --> s[Glue: silver] --> g[Glue: gold] --> m[Glue: modelos] --> t[Glue: tablero] --> x[Glue: expand] --> c[Crawler]
-    end
-    s3[(S3<br>raw, bronze, silver, gold)] <--> sfn
-    c --> cat[Glue Data Catalog] --> athena[Athena]
-    sfn -. falla .-> sns[SNS: correo]
-```
+El diagrama completo esta en la seccion de [arquitectura](#arquitectura)
+y en [docs/arquitectura_aws.png](docs/arquitectura_aws.png).
 
 | Recurso | Que hace |
 |---|---|

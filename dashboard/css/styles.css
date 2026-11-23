@@ -190,9 +190,17 @@ h2 { margin: 0; color: var(--texto); font-size: 27px; font-weight: 700; line-hei
 .pie { flex: none; margin-top: 16px; padding-top: 10px; border-top: 1px solid var(--borde); font-size: 12.5px; color: var(--texto-3); }
 .pie p { margin: 0; }
 
-/* ---------- 4. Modelo: cobertura a todo el ancho; abajo, calificacion y municipios ---------- */
+/* ---------- 4. Modelo: resumen a todo el ancho; abajo, comparacion y municipios ---------- */
 .rejilla-modelo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); grid-template-rows: minmax(0, 0.85fr) minmax(0, 1.15fr); gap: var(--gap); }
 .rejilla-modelo .panel.ancho { grid-column: 1 / -1; }
+.resumen-modelo { display: flex; flex-direction: column; gap: 12px; overflow: auto; }
+.resumen-modelo-intro { flex: none; margin: 0; color: var(--texto-2); font-size: 14px; }
+.resumen-modelo-detalle { flex: none; margin: -6px 0 0; color: var(--texto-3); font-size: 12px; line-height: 1.35; }
+.resumen-modelo-metricas { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.resumen-modelo-metrica { min-width: 0; padding: 8px 10px; border: 1px solid var(--borde); border-radius: 7px; background: var(--fondo); }
+.resumen-modelo-metrica strong { display: block; overflow: hidden; color: var(--texto); font-size: 19px; line-height: 1.2; text-overflow: ellipsis; white-space: nowrap; }
+.resumen-modelo-metrica span { display: block; margin-top: 3px; color: var(--texto-3); font-size: 12px; line-height: 1.2; }
+.nota-importancia { flex: none; margin: -4px 0 6px; color: var(--texto-3); font-size: 12px; line-height: 1.3; }
 
 /* ---------- Tooltip ---------- */
 .tip {
@@ -213,6 +221,8 @@ h2 { margin: 0; color: var(--texto); font-size: 27px; font-weight: 700; line-hei
 @media (max-width: 1200px), (max-height: 680px) {
   :root { --barra: auto; }
   html, body { height: auto; overflow: auto; }
+  .rejilla-modelo { grid-template-rows: auto auto; }
+  .resumen-modelo-metricas { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .barra { flex-wrap: wrap; padding: 8px 14px; }
   .marca h1 { white-space: normal; }
   main.principal { height: auto; padding: 18px 16px 30px; }

@@ -165,6 +165,48 @@
         0.0701,
         0.0724
       ]
+    },
+    "extra_trees": {
+      "pr_auc_media": 0.1511,
+      "pr_auc_desviacion": 0.0796,
+      "roc_auc_media": 0.6963,
+      "roc_auc_desviacion": 0.0666,
+      "pr_auc_entrenamiento_media": 0.2195,
+      "pr_auc_por_pliegue": [
+        0.0286,
+        0.1137,
+        0.2142,
+        0.1873,
+        0.2117
+      ],
+      "prevalencia_por_pliegue": [
+        0.0065,
+        0.0406,
+        0.0728,
+        0.0701,
+        0.0724
+      ]
+    },
+    "arbol_decision": {
+      "pr_auc_media": 0.1242,
+      "pr_auc_desviacion": 0.0773,
+      "roc_auc_media": 0.635,
+      "roc_auc_desviacion": 0.0657,
+      "pr_auc_entrenamiento_media": 0.2489,
+      "pr_auc_por_pliegue": [
+        0.016,
+        0.0728,
+        0.2044,
+        0.1633,
+        0.1645
+      ],
+      "prevalencia_por_pliegue": [
+        0.0065,
+        0.0406,
+        0.0728,
+        0.0701,
+        0.0724
+      ]
     }
   },
   "curva_aprendizaje": [
@@ -191,6 +233,10 @@
       "brier": 0.0493,
       "precision": 0.0,
       "recall": 0.0,
+      "specificity": 1.0,
+      "f1": 0.0,
+      "accuracy": 0.948,
+      "balanced_accuracy": 0.5,
       "verdaderos_negativos": 95302,
       "falsos_positivos": 0,
       "falsos_negativos": 5227,
@@ -206,6 +252,10 @@
       "brier": 0.044,
       "precision": 0.1989,
       "recall": 0.6124,
+      "specificity": 0.8647,
+      "f1": 0.3003,
+      "accuracy": 0.8516,
+      "balanced_accuracy": 0.7386,
       "verdaderos_negativos": 82411,
       "falsos_positivos": 12891,
       "falsos_negativos": 2026,
@@ -222,6 +272,10 @@
       "brier": 0.0438,
       "precision": 0.2062,
       "recall": 0.6065,
+      "specificity": 0.872,
+      "f1": 0.3078,
+      "accuracy": 0.8582,
+      "balanced_accuracy": 0.7392,
       "verdaderos_negativos": 83100,
       "falsos_positivos": 12202,
       "falsos_negativos": 2057,
@@ -238,6 +292,10 @@
       "brier": 0.0444,
       "precision": 0.2027,
       "recall": 0.572,
+      "specificity": 0.8766,
+      "f1": 0.2993,
+      "accuracy": 0.8607,
+      "balanced_accuracy": 0.7243,
       "verdaderos_negativos": 83539,
       "falsos_positivos": 11763,
       "falsos_negativos": 2237,
@@ -247,6 +305,46 @@
       "filas": 100529,
       "prevalencia": 0.052,
       "brier_sin_calibrar": 0.1351
+    },
+    "extra_trees": {
+      "roc_auc": 0.8135,
+      "average_precision": 0.2074,
+      "brier": 0.0446,
+      "precision": 0.1954,
+      "recall": 0.5665,
+      "specificity": 0.8721,
+      "f1": 0.2906,
+      "accuracy": 0.8562,
+      "balanced_accuracy": 0.7193,
+      "verdaderos_negativos": 83111,
+      "falsos_positivos": 12191,
+      "falsos_negativos": 2266,
+      "verdaderos_positivos": 2961,
+      "tasa_alerta": 0.1507,
+      "costo_esperado_por_registro": 0.3467,
+      "filas": 100529,
+      "prevalencia": 0.052,
+      "brier_sin_calibrar": 0.1674
+    },
+    "arbol_decision": {
+      "roc_auc": 0.8164,
+      "average_precision": 0.2315,
+      "brier": 0.0441,
+      "precision": 0.2003,
+      "recall": 0.6095,
+      "specificity": 0.8665,
+      "f1": 0.3015,
+      "accuracy": 0.8531,
+      "balanced_accuracy": 0.738,
+      "verdaderos_negativos": 82578,
+      "falsos_positivos": 12724,
+      "falsos_negativos": 2041,
+      "verdaderos_positivos": 3186,
+      "tasa_alerta": 0.1583,
+      "costo_esperado_por_registro": 0.3296,
+      "filas": 100529,
+      "prevalencia": 0.052,
+      "brier_sin_calibrar": 0.1724
     }
   },
   "regla_simple_carga_o_autoridad_nacional": {
@@ -255,6 +353,10 @@
     "brier": 0.1269,
     "precision": 0.2083,
     "recall": 0.5144,
+    "specificity": 0.8927,
+    "f1": 0.2965,
+    "accuracy": 0.8731,
+    "balanced_accuracy": 0.7036,
     "verdaderos_negativos": 85079,
     "falsos_positivos": 10223,
     "falsos_negativos": 2538,
@@ -369,6 +471,10 @@
     "brier": 0.042,
     "precision": 0.2113,
     "recall": 0.4861,
+    "specificity": 0.9084,
+    "f1": 0.2946,
+    "accuracy": 0.8882,
+    "balanced_accuracy": 0.6973,
     "verdaderos_negativos": 282851,
     "falsos_positivos": 28505,
     "falsos_negativos": 8075,
@@ -385,6 +491,10 @@
       "brier": 0.0639,
       "precision": 0.2064,
       "recall": 0.7081,
+      "specificity": 0.7686,
+      "f1": 0.3196,
+      "accuracy": 0.7639,
+      "balanced_accuracy": 0.7384,
       "verdaderos_negativos": 72164,
       "falsos_positivos": 21725,
       "falsos_negativos": 2329,
@@ -400,6 +510,10 @@
       "brier": 0.0633,
       "precision": 0.2077,
       "recall": 0.7068,
+      "specificity": 0.773,
+      "f1": 0.3211,
+      "accuracy": 0.7678,
+      "balanced_accuracy": 0.7399,
       "verdaderos_negativos": 70946,
       "falsos_positivos": 20840,
       "falsos_negativos": 2266,
@@ -425,12 +539,12 @@
     "silueta": {
       "kmeans": {
         "2": 0.3125,
-        "3": 0.2547,
-        "4": 0.2407,
-        "5": 0.2433,
+        "3": 0.2546,
+        "4": 0.2472,
+        "5": 0.2439,
         "6": 0.2293,
-        "7": 0.2215,
-        "8": 0.2102
+        "7": 0.2223,
+        "8": 0.2327
       },
       "jerarquico_ward": {
         "2": 0.3192,
@@ -451,16 +565,6 @@
     "perfil_grupos": [
       {
         "grupo": 1,
-        "municipios": 113.0,
-        "registros": 415519.0,
-        "prop_con_muertos": 0.0814,
-        "edad_promedio": 8.6653,
-        "prop_motos": 0.6154,
-        "prop_carga": 0.0616,
-        "prop_autoridad_nacional": 0.1912
-      },
-      {
-        "grupo": 2,
         "municipios": 97.0,
         "registros": 28156.0,
         "prop_con_muertos": 0.241,
@@ -468,22 +572,32 @@
         "prop_motos": 0.4948,
         "prop_carga": 0.1666,
         "prop_autoridad_nacional": 0.7006
+      },
+      {
+        "grupo": 2,
+        "municipios": 113.0,
+        "registros": 415519.0,
+        "prop_con_muertos": 0.0814,
+        "edad_promedio": 8.6653,
+        "prop_motos": 0.6154,
+        "prop_carga": 0.0616,
+        "prop_autoridad_nacional": 0.1912
       }
     ],
     "ejemplos_por_grupo": {
       "1": [
-        "MEDELLIN (ANTIOQUIA)",
-        "BOGOTA (BOGOTA D.C.)",
-        "CALI (VALLE DEL CAUCA)",
-        "BARRANQUILLA (ATLANTICO)",
-        "BELLO (ANTIOQUIA)"
-      ],
-      "2": [
         "CAJICA (CUNDINAMARCA)",
         "CHIGORODO (ANTIOQUIA)",
         "BUENAVENTURA (VALLE DEL CAUCA)",
         "GARZON (HUILA)",
         "RIOHACHA (LA GUAJIRA)"
+      ],
+      "2": [
+        "MEDELLIN (ANTIOQUIA)",
+        "BOGOTA (BOGOTA D.C.)",
+        "CALI (VALLE DEL CAUCA)",
+        "BARRANQUILLA (ATLANTICO)",
+        "BELLO (ANTIOQUIA)"
       ]
     }
   },
@@ -496,6 +610,10 @@
       "brier": 0.2006,
       "precision": 0.2892,
       "recall": 0.8209,
+      "specificity": 0.253,
+      "f1": 0.4278,
+      "accuracy": 0.4065,
+      "balanced_accuracy": 0.537,
       "verdaderos_negativos": 744,
       "falsos_positivos": 2197,
       "falsos_negativos": 195,
@@ -507,29 +625,16 @@
     },
     {
       "grupo": 1,
-      "municipios": 113,
-      "roc_auc": 0.6561,
-      "average_precision": 0.1248,
-      "brier": 0.0319,
-      "precision": 0.1776,
-      "recall": 0.3467,
-      "verdaderos_negativos": 277755,
-      "falsos_positivos": 17020,
-      "falsos_negativos": 6924,
-      "verdaderos_positivos": 3675,
-      "tasa_alerta": 0.0678,
-      "costo_esperado_por_registro": 0.2825,
-      "filas": 305374,
-      "prevalencia": 0.0347
-    },
-    {
-      "grupo": 2,
       "municipios": 96,
       "roc_auc": 0.5802,
       "average_precision": 0.2859,
       "brier": 0.1809,
       "precision": 0.2483,
       "recall": 0.7624,
+      "specificity": 0.3191,
+      "f1": 0.3746,
+      "accuracy": 0.4201,
+      "balanced_accuracy": 0.5407,
       "verdaderos_negativos": 4352,
       "falsos_positivos": 9288,
       "falsos_negativos": 956,
@@ -538,6 +643,27 @@
       "costo_esperado_por_registro": 1.067,
       "filas": 17664,
       "prevalencia": 0.2278
+    },
+    {
+      "grupo": 2,
+      "municipios": 113,
+      "roc_auc": 0.6561,
+      "average_precision": 0.1248,
+      "brier": 0.0319,
+      "precision": 0.1776,
+      "recall": 0.3467,
+      "specificity": 0.9423,
+      "f1": 0.2349,
+      "accuracy": 0.9216,
+      "balanced_accuracy": 0.6445,
+      "verdaderos_negativos": 277755,
+      "falsos_positivos": 17020,
+      "falsos_negativos": 6924,
+      "verdaderos_positivos": 3675,
+      "tasa_alerta": 0.0678,
+      "costo_esperado_por_registro": 0.2825,
+      "filas": 305374,
+      "prevalencia": 0.0347
     }
   ],
   "casos": [
