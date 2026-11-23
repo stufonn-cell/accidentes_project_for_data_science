@@ -45,9 +45,10 @@ transito Ley 2251-2022, datos.gov.co, conjunto
 [6jmc-vaxk](https://www.datos.gov.co/d/6jmc-vaxk), licencia CC BY-SA 4.0:
 hay que citar al Ministerio de Transporte y al RUNT y compartir los datos
 derivados con la misma licencia. 9 columnas, sin datos personales. El CSV
-(unos 50 MB) no se versiona en git: lo deja `python -m src.ingesta` en
+(unos 50 MB) esta en el repositorio en
 `data/raw/vehiculos_siniestros_runt.csv`, y `data/raw/manifiesto.json`
-registra su huella sha256 y las validaciones.
+registra su huella sha256 y las validaciones. `python -m src.ingesta` lo
+vuelve a descargar del portal cuando el RUNT publica una version nueva.
 
 Lo que hay que tener en cuenta al leer los resultados:
 
@@ -81,6 +82,11 @@ Lo que hay que tener en cuenta al leer los resultados:
   calcular tasas por habitante.
 
 ## Arquitectura
+
+![Arquitectura del proyecto en AWS](docs/arquitectura_aws.png)
+
+El diagrama usa los iconos oficiales de AWS (Architecture Icons, julio de
+2026). El flujo logico de las capas es este:
 
 ```mermaid
 flowchart LR
@@ -288,16 +294,8 @@ Framework. Un solo comando la crea, otro corre el pipeline y otro la borra
 por completo. **Estado: el codigo de despliegue esta actualizado para el
 RUNT pero no se ha vuelto a desplegar.**
 
-```mermaid
-flowchart LR
-    sched[EventBridge Scheduler<br>mensual, apagado por defecto] --> sfn
-    subgraph sfn[Step Functions]
-        i[Glue: ingesta] --> b[Glue: bronze] --> s[Glue: silver] --> g[Glue: gold] --> m[Glue: modelos] --> c[Crawler]
-    end
-    s3[(S3<br>raw, bronze, silver, gold)] <--> sfn
-    c --> cat[Glue Data Catalog] --> athena[Athena]
-    sfn -. falla .-> sns[SNS: correo]
-```
+El diagrama completo esta en la seccion de [arquitectura](#arquitectura)
+y en [docs/arquitectura_aws.png](docs/arquitectura_aws.png).
 
 | Recurso | Que hace |
 |---|---|
