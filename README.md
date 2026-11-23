@@ -201,6 +201,10 @@ municipios que no vio.
   sobre 2022-2024, sin los meses con cobertura anomala ni las filas con
   fecha reubicada (327,068 filas), con busqueda de hiperparametros en
   rejilla.
+- **Comparacion**: regresion logistica, gradient boosting, bosque aleatorio,
+  Extra Trees y arbol de decision; se selecciona el de mayor PR-AUC media
+  agrupada. La rejilla ajusta regresion logistica y gradient boosting; los
+  tres modelos de arbol restantes usan configuraciones fijas.
 - **Prueba temporal**: entrena con 2022-2023 y prueba con 2024. Los modelos
   se calibran con regresion isotonica.
 - **Umbral**: perder un siniestro con muertos se supone 10 veces mas costoso
@@ -210,14 +214,16 @@ municipios que no vio.
   municipios con 100 o mas registros, k elegido por silueta.
 
 Resultados de `data/gold/modelos/metricas.json` (version
-`runt-2026-11-20-deb82db1`):
+`runt-2026-11-21-68160f32`):
 
-| Modelo | PR-AUC validacion agrupada | PR-AUC prueba 2024 | ROC-AUC 2024 | Sensibilidad 2024 | Precision 2024 |
-|---|---|---|---|---|---|
-| Prevalencia (referencia) | 0.052 | 0.052 | 0.500 | 0.000 | 0.000 |
-| Regresion logistica | 0.143 | 0.221 | 0.825 | 0.612 | 0.199 |
-| **Gradient boosting** | **0.162** | **0.232** | **0.825** | **0.606** | **0.206** |
-| Bosque aleatorio | 0.156 | 0.215 | 0.817 | 0.572 | 0.203 |
+| Modelo | PR-AUC 2024 | ROC-AUC 2024 | Precision 2024 | Balanced accuracy 2024 | F1 2024 | Recall 2024 |
+|---|---:|---:|---:|---:|---:|---:|
+| Prevalencia (referencia) | 0.0520 | 0.5000 | 0.0000 | 0.5000 | 0.0000 | 0.0000 |
+| Regresion logistica | 0.2210 | 0.8246 | 0.1989 | 0.7386 | 0.3003 | 0.6124 |
+| Bosque aleatorio | 0.2153 | 0.8170 | 0.2027 | 0.7243 | 0.2993 | 0.5720 |
+| Extra Trees | 0.2074 | 0.8135 | 0.1954 | 0.7193 | 0.2906 | 0.5665 |
+| Arbol de decision | 0.2315 | 0.8164 | 0.2003 | 0.7380 | 0.3015 | 0.6095 |
+| **Gradient boosting** | **0.2318** | **0.8247** | **0.2062** | **0.7392** | **0.3078** | **0.6065** |
 
 - Gana gradient boosting (mayor PR-AUC media en la validacion agrupada). En
   2024 su PR-AUC es 4.5 veces la prevalencia (0.052); en el umbral 0.0909
@@ -233,8 +239,9 @@ Resultados de `data/gold/modelos/metricas.json` (version
 
 Se usaron solo pandas, numpy, pyarrow, scikit-learn y joblib para que corra
 en Glue: la busqueda de hiperparametros es en rejilla en vez de optuna, y la
-importancia por permutacion reemplaza a SHAP. Detalle y decisiones en
-[reports/modelo.md](reports/modelo.md).
+importancia por permutacion reemplaza a SHAP. El dashboard compara todos los
+candidatos y presenta las metricas de validacion agrupada y prueba temporal
+del ganador. Detalle y decisiones en [reports/modelo.md](reports/modelo.md).
 
 ## Tablero web
 
@@ -255,8 +262,12 @@ El script lee la capa gold despues de `python -m src.pipeline`: la tabla
 `vehiculos` (con la edad recalculada y la bandera `cobertura_anomala`), la
 tabla `municipio_mes` (estado del reporte) y `modelos`. Los hallazgos
 excluyen los registros de meses con reporte anomalo, igual que el
-entrenamiento. Luego basta con abrir `dashboard/index.html` en el navegador
-o servir la carpeta con `python -m http.server`.
+entrenamiento. La seccion del modelo compara los candidatos, resume las seis
+metricas 2024 del ganador y presenta sus hiperparametros elegidos, tamaño de
+la muestra de busqueda y variables de entrada. Tambien muestra la importancia
+predictiva por permutacion de variables (no significancia estadistica
+inferencial). Luego basta con abrir `dashboard/index.html` en el navegador o
+servir la carpeta con `python -m http.server`.
 
 ## API de prediccion
 

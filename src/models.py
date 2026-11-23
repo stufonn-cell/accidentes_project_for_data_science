@@ -16,9 +16,8 @@ Steps, all with fixed seeds:
    The base document planned optuna; Glue only offers scikit-learn, so a
    small systematic grid is used instead.
 2. Model selection: GroupKFold k=5 by municipality over all 2022-2024
-   rows: prevalence, logistic regression (balanced class weights),
-   HistGradientBoosting (balanced class weights) and random forest. The
-   best mean PR-AUC wins.
+   rows: prevalence, logistic regression, HistGradientBoosting, random
+   forest, ExtraTrees and a decision tree. The best mean PR-AUC wins.
 3. Temporal check: train 2022-2023, test 2024. Each model is calibrated
    with isotonic regression (class weights distort the probabilities).
    2025-2026 is scored apart and flagged as coverage shifted.
@@ -47,13 +46,14 @@ from sklearn.calibration import CalibratedClassifierCV
 from sklearn.cluster import AgglomerativeClustering, KMeans
 from sklearn.compose import ColumnTransformer
 from sklearn.dummy import DummyClassifier
-from sklearn.ensemble import HistGradientBoostingClassifier, RandomForestClassifier
+from sklearn.ensemble import ExtraTreesClassifier, HistGradientBoostingClassifier, RandomForestClassifier
 from sklearn.impute import SimpleImputer
 from sklearn.inspection import permutation_importance
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import (adjusted_rand_score, average_precision_score, brier_score_loss,
                              confusion_matrix, roc_auc_score, silhouette_score)
 from sklearn.model_selection import GridSearchCV, GroupKFold, learning_curve
+from sklearn.tree import DecisionTreeClassifier
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, OrdinalEncoder, StandardScaler
 
@@ -120,6 +120,23 @@ def random_forest():
                          class_weight="balanced_subsample", n_jobs=-1, random_state=SEED))])
 
 
+def extra_trees():
+    return Pipeline([("preparar", ordinal_encoder()),
+                     ("imputar", SimpleImputer(strategy="median")),
+                     ("clasificador", ExtraTreesClassifier(
+                         n_estimators=60, max_depth=14, min_samples_leaf=20, max_samples=0.25,
+                         bootstrap=True, class_weight="balanced_subsample", n_jobs=-1,
+                         random_state=SEED))])
+
+
+def decision_tree():
+    return Pipeline([("preparar", ordinal_encoder()),
+                     ("imputar", SimpleImputer(strategy="median")),
+                     ("clasificador", DecisionTreeClassifier(
+                         max_depth=12, min_samples_leaf=100, class_weight="balanced",
+                         random_state=SEED))])
+
+
 def prevalence():
     return Pipeline([("clasificador", DummyClassifier(strategy="prior"))])
 
@@ -136,12 +153,19 @@ def evaluate(y, proba, threshold=THRESHOLD):
     y = np.asarray(y)
     pred = (proba >= threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y, pred, labels=[0, 1]).ravel()
+    recall = float(tp / (tp + fn)) if tp + fn else 0.0
+    specificity = float(tn / (tn + fp)) if tn + fp else 0.0
+    precision = float(tp / (tp + fp)) if tp + fp else 0.0
     return {
         "roc_auc": round(float(roc_auc_score(y, proba)), 4),
         "average_precision": round(float(average_precision_score(y, proba)), 4),
         "brier": round(float(brier_score_loss(y, proba)), 4),
-        "precision": round(float(tp / (tp + fp)) if tp + fp else 0.0, 4),
-        "recall": round(float(tp / (tp + fn)) if tp + fn else 0.0, 4),
+        "precision": round(precision, 4),
+        "recall": round(recall, 4),
+        "specificity": round(specificity, 4),
+        "f1": round(float(2 * precision * recall / (precision + recall)) if precision + recall else 0.0, 4),
+        "accuracy": round(float((tp + tn) / len(y)), 4),
+        "balanced_accuracy": round(float((recall + specificity) / 2), 4),
         "verdaderos_negativos": int(tn), "falsos_positivos": int(fp),
         "falsos_negativos": int(fn), "verdaderos_positivos": int(tp),
         "tasa_alerta": round(float(pred.mean()), 4),
@@ -293,6 +317,8 @@ def main():
         "regresion_logistica": lambda: logistic().set_params(**tuned["regresion_logistica"]),
         "gradient_boosting": lambda: gradient_boosting().set_params(**tuned["gradient_boosting"]),
         "bosque_aleatorio": random_forest,
+        "extra_trees": extra_trees,
+        "arbol_decision": decision_tree,
     }
 
     # 2. model selection with grouped CV over all 2022-2024 rows

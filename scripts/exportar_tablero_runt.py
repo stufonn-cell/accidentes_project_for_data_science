@@ -65,6 +65,21 @@ def model_section():
     description = json.loads((MODELS / "metricas.json").read_text(encoding="utf-8"))
     metrics = pd.read_parquet(MODELS / "metricas")
     metrics = metrics[metrics["evaluacion"] == TEMPORAL_TEST]
+    best_name = description.get("mejor_modelo")
+    search = description.get("busqueda_hiperparametros", {})
+    best_search = search.get(best_name, {})
+    winner = {
+        "modelo": best_name,
+        "validacion_agrupada": description.get("validacion_agrupada", {}).get(best_name, {}),
+        "prueba_2024": description.get("modelos", {}).get(best_name, {}),
+        "umbral": description.get("umbral_decision"),
+        "hiperparametros": best_search.get("mejores", {}),
+        "combinaciones_evaluadas": best_search.get("combinaciones", 0),
+        "filas_muestra_busqueda": search.get("filas_muestra", 0),
+        "variables": description.get("variables", {}),
+        "particion": description.get("particion", {}),
+        "criterio_seleccion": description.get("criterio_seleccion", ""),
+    }
     lethality = pd.read_parquet(MODELS / "letalidad")
     lethality = lethality[lethality["registros"] >= LETHALITY_MIN_ROWS]
     lethality = lethality.reindex(lethality["diferencia"].abs().sort_values(ascending=False).index)
@@ -92,6 +107,12 @@ def model_section():
         "version": description.get("version"),
         "mejor": description.get("mejor_modelo"),
         "umbral": description.get("umbral_decision"),
+        "ganador": winner,
+        "importancia_variables": [
+            {"variable": r["variable"], "caida_pr_auc": float(r["caida_pr_auc"]),
+             "desviacion": float(r["desviacion"])}
+            for r in description.get("importancia_variables", [])
+        ],
         "metricas": [{"modelo": r.modelo, "pr_auc": round(float(r.average_precision), 4),
                       "roc_auc": round(float(r.roc_auc), 4), "recall": round(float(r.recall), 4),
                       "precision": round(float(r.precision), 4), "mejor": int(r.es_mejor),

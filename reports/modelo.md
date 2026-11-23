@@ -2,7 +2,7 @@
 
 Este informe recorre los criterios 1 a 6 de la rubrica de Aprendizaje
 Automatico. Todos los numeros salen de `data/gold/modelos/metricas.json`
-(version `runt-2026-11-20-deb82db1`) y de las tablas de `data/gold/modelos`,
+(version `runt-2026-11-21-68160f32`) y de las tablas de `data/gold/modelos`,
 y se reproducen con `python -m src.pipeline`. Las semillas estan fijas; que
 dos corridas den un `metricas.json` identico byte a byte se comprobo con la
 version anterior del flujo, antes de repartir las cargas masivas.
@@ -75,10 +75,15 @@ reubicada: 327,068 filas, prevalencia 4.80%.
      coherente con una señal debil.
    - Bosque aleatorio: configuracion fija (60 arboles, profundidad 14, hoja
      minima 20), sin busqueda para limitar el tiempo.
-2. **Seleccion** con `GroupKFold` k=5 por municipio sobre las 327,068 filas.
-   Los municipios de validacion nunca se ven al entrenar, y como cada
-   siniestro tiene un solo municipio, los vehiculos de un mismo siniestro no
-   quedan repartidos entre entrenamiento y prueba.
+   - Extra Trees: 60 arboles, profundidad 14 y hoja minima 20; arbol de
+     decision: profundidad 12 y hoja minima 100. Se agregan con configuracion
+     fija para ampliar la comparacion sin multiplicar el costo de busqueda.
+2. **Seleccion** con `GroupKFold` k=5 por municipio sobre las 327,068 filas,
+   comparando cinco clasificadores (logistica, gradient boosting, bosque
+   aleatorio, Extra Trees y arbol de decision) contra la referencia de
+   prevalencia. Los municipios de validacion nunca se ven al entrenar, y
+   como cada siniestro tiene un solo municipio, sus vehiculos no quedan
+   repartidos entre entrenamiento y prueba.
 3. **Prueba temporal** con el test intacto hasta el final: entrenar con
    2022-2023 (226,539 filas) y probar con 2024 (100,529 filas, prevalencia
    5.20%). Cada modelo se calibra con regresion isotonica (3 pliegues).
@@ -91,18 +96,23 @@ proyecto.
 
 **Resultados.**
 
-| Modelo | PR-AUC agrupada (media +- desv.) | ROC-AUC agrupada | PR-AUC 2024 | ROC-AUC 2024 | Brier 2024 |
-|---|---|---|---|---|---|
-| Prevalencia (linea base) | 0.052 +- 0.029 | 0.500 | 0.052 | 0.500 | 0.0493 |
-| Regresion logistica (linea base) | 0.143 +- 0.077 | 0.693 | 0.221 | 0.825 | 0.0440 |
-| Bosque aleatorio (ensamble) | 0.156 +- 0.081 | 0.695 | 0.215 | 0.817 | 0.0444 |
-| **Gradient boosting (ensamble)** | **0.162 +- 0.083** | **0.704** | **0.232** | **0.825** | **0.0438** |
+| Modelo | PR-AUC 2024 | ROC-AUC 2024 | Precision 2024 | Balanced accuracy 2024 | F1 2024 | Recall 2024 |
+|---|---:|---:|---:|---:|---:|---:|
+| Prevalencia (referencia) | 0.0520 | 0.5000 | 0.0000 | 0.5000 | 0.0000 | 0.0000 |
+| Regresion logistica | 0.2210 | 0.8246 | 0.1989 | 0.7386 | 0.3003 | 0.6124 |
+| Bosque aleatorio | 0.2153 | 0.8170 | 0.2027 | 0.7243 | 0.2993 | 0.5720 |
+| Extra Trees | 0.2074 | 0.8135 | 0.1954 | 0.7193 | 0.2906 | 0.5665 |
+| Arbol de decision | 0.2315 | 0.8164 | 0.2003 | 0.7380 | 0.3015 | 0.6095 |
+| **Gradient boosting** | **0.2318** | **0.8247** | **0.2062** | **0.7392** | **0.3078** | **0.6065** |
 
-Gana el gradient boosting por PR-AUC agrupada, y tambien es el mejor en la
-prueba temporal por PR-AUC y Brier; en ROC-AUC 2024 empata con la regresion
-logistica (0.8247 frente a 0.8246). La ventaja sobre la regresion logistica
-es pequeña (0.019 en PR-AUC agrupada, 0.011 en 2024): casi toda la señal es
-aditiva.
+Gradient boosting se conserva como ganador por su mayor PR-AUC media en la
+validacion agrupada por municipio. En el test temporal de 2024, el arbol de
+decision queda casi empatado en PR-AUC (0.2315 frente a 0.2318), pero el
+gradient boosting tambien logra los mejores ROC-AUC, balanced accuracy y F1.
+El resumen del dashboard se limita a estas seis metricas del test 2024.
+
+**Metricas del ganador en la prueba temporal de 2024:** las seis metricas y
+sus resultados se muestran en la tabla comparativa anterior.
 
 **Sorpresa: la validacion por municipio es mucho mas dura que la temporal.**
 En 2024 el modelo ya conoce las autoridades de cada municipio y logra 0.232
